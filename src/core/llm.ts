@@ -29,11 +29,11 @@ const ANTHROPIC_VERSION = "2023-06-01";
 console.log(`[LLM] Backend: ${process.env.LLM_BACKEND || "groq"} | Anthropic key: ${ANTHROPIC_API_KEY ? "present (" + ANTHROPIC_API_KEY.slice(0, 10) + "...)" : "MISSING"} | Groq key: ${process.env.GROQ_API_KEY ? "present" : "MISSING"}`);
 
 /** Anthropic model mapping: tier → Claude model */
-/** Hybrid: Sonnet for fast/balanced (cheap), Opus for deep analysis */
+/** All tiers use Sonnet — best quality/cost ratio for language tutoring */
 const ANTHROPIC_MODEL_MAP: Record<ModelTier, string> = {
   fast: process.env.ANTHROPIC_MODEL_FAST || "claude-sonnet-4-20250514",
   balanced: process.env.ANTHROPIC_MODEL_BALANCED || "claude-sonnet-4-20250514",
-  deep: process.env.ANTHROPIC_MODEL_DEEP || "claude-opus-4-20250514",
+  deep: process.env.ANTHROPIC_MODEL_DEEP || "claude-sonnet-4-20250514",
 };
 
 // --- Groq (fallback) ---
@@ -453,14 +453,19 @@ async function* callGroqStream(
 
 /**
  * Send a request to the LLM backend.
- * Automatically routes to Anthropic or Groq based on LLM_BACKEND env var.
+ * Hybrid routing: "deep" tier → Anthropic Sonnet (if key present), rest → Groq Llama.
+ * Falls back to Groq for all tiers if no Anthropic key.
  */
 export async function callLLM(
   messages: LLMMessage[],
   tier: ModelTier = "balanced"
 ): Promise<LLMResponse> {
+  // Hybrid: deep tier gets Anthropic Sonnet, rest gets free Llama
+  if (tier === "deep" && ANTHROPIC_API_KEY) {
+    return callAnthropic(messages, tier);
+  }
+  // Admin override: if backend forced to anthropic, use it for all tiers
   const backend = resolveBackend();
-
   if (backend === "anthropic") {
     return callAnthropic(messages, tier);
   }
@@ -469,18 +474,22 @@ export async function callLLM(
 
 /**
  * Stream LLM response as an async generator.
- * Automatically routes to Anthropic or Groq based on LLM_BACKEND env var.
+ * Hybrid routing: "deep" tier → Anthropic Sonnet (if key present), rest → Groq Llama.
  */
 export async function* callLLMStream(
   messages: LLMMessage[],
   tier: ModelTier = "balanced"
 ): AsyncGenerator<string> {
-  const backend = resolveBackend();
-
-  if (backend === "anthropic") {
+  // Hybrid: deep tier gets Anthropic Sonnet, rest gets free Llama
+  if (tier === "deep" && ANTHROPIC_API_KEY) {
     yield* callAnthropicStream(messages, tier);
   } else {
-    yield* callGroqStream(messages, tier);
+    const backend = resolveBackend();
+    if (backend === "anthropic") {
+      yield* callAnthropicStream(messages, tier);
+    } else {
+      yield* callGroqStream(messages, tier);
+    }
   }
 }
 
