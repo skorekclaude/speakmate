@@ -1,55 +1,61 @@
 /**
- * SpeakMate — Internationalization (Polish UI only)
- *
- * The app UI is in Polish. Language learning happens in English/Portuguese.
+ * SpeakMate i18n — PL (main) + EN + PT
  */
 
-export type Language = "pl";
-
-export function detectLanguage(_text: string): Language {
-  return "pl"; // Always Polish UI
-}
-
-interface Translations {
-  disclaimer: string;
-  session_greeting: string;
-  welcome: string;
-}
-
-const translations: Translations = {
-  disclaimer:
-    "Jestem SpeakMate, Twój AI tutor językowy. Pomagam uczyć się angielskiego " +
-    "i portugalskiego przez naturalne rozmowy. Nie zastępuję nauczyciela — " +
-    "jestem dodatkowym partnerem do ćwiczeń. Rozmawiaj ze mną jak z kolegą!",
-
-  session_greeting: "Hej! Gotowy na naukę? O czym chcesz dziś porozmawiać po angielsku? 🗣️",
-
-  welcome:
-    "Witaj w SpeakMate! 👋
-
-" +
-    "Jestem Twoim AI tutorem językowym. Mogę pomóc Ci z:
-" +
-    "🗣️ Swobodna rozmowa po angielsku
-" +
-    "📝 Ćwiczenia gramatyczne
-" +
-    "📚 Słownictwo i idiomy
-" +
-    "🎤 Wymowa
-" +
-    "💼 Angielski biznesowy
-" +
-    "✈️ Angielski podróżniczy
-" +
-    "🎬 Slang i pop kultura
-" +
-    "🇧🇷 Portugalski od zera
-
-" +
-    "Napisz cokolwiek po angielsku, a ja odpowiem i poprawię Twoje błędy! 🚀",
+const translations: Record<string, Record<string, string>> = {
+  pl: {
+    welcome: "Witaj w SpeakMate! Wybierz tutora i zacznij mówić.",
+    send: "Wyślij",
+    speak: "Przytrzymaj, żeby mówić",
+    listening: "Słucham...",
+    thinking: "Myślę...",
+    correction: "Korekta",
+    vocabulary: "Słownictwo",
+    play: "Odtwórz",
+    stop: "Stop",
+    clear: "Wyczyść czat",
+    agents: "Tutorzy",
+    noCorrections: "Idealnie! Brak poprawek.",
+    login: "Zaloguj się",
+    startLearning: "Zacznij naukę",
+    enterEmail: "Wpisz swój email...",
+  },
+  en: {
+    welcome: "Welcome to SpeakMate! Choose a tutor and start speaking.",
+    send: "Send",
+    speak: "Hold to Talk",
+    listening: "Listening...",
+    thinking: "Thinking...",
+    correction: "Correction",
+    vocabulary: "Vocabulary",
+    play: "Play",
+    stop: "Stop",
+    clear: "Clear Chat",
+    agents: "Tutors",
+    noCorrections: "Perfect! No corrections needed.",
+    login: "Log in",
+    startLearning: "Start Learning",
+    enterEmail: "Enter your email...",
+  },
+  pt: {
+    welcome: "Bem-vindo ao SpeakMate! Escolha um tutor e comece a falar.",
+    send: "Enviar",
+    speak: "Segure para Falar",
+    listening: "Ouvindo...",
+    thinking: "Pensando...",
+    correction: "Correção",
+    vocabulary: "Vocabulário",
+    play: "Ouvir",
+    stop: "Parar",
+    clear: "Limpar Chat",
+    agents: "Tutores",
+    noCorrections: "Perfeito! Nenhuma correção necessária.",
+    login: "Entrar",
+    startLearning: "Começar a aprender",
+    enterEmail: "Digite seu email...",
+  },
 };
 
-export function t(key: keyof Translations): string {
-  return translations[key];
+export function t(key: string, lang: string = "en"): string {
+  return translations[lang]?.[key] || translations["en"]?.[key] || key;
 }

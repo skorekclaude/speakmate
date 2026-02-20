@@ -2,816 +2,153 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>ALLMA — Your Personal Psychology Coach</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1A1A2E">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ALLMA">
-  <link rel="apple-touch-icon" href="/icons/icon-152.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/assets/style.css">
-  <script>
-    // Prevent dark mode flash — apply theme before CSS renders
-    (function(){var t=localStorage.getItem('allma_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);})();
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakMate — AI Language Tutor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero {
+      text-align: center;
+      padding: 2rem;
+      max-width: 600px;
+    }
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero .subtitle {
+      font-size: 1.2rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    .agents-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .agent-card {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1rem;
+      width: 150px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .agent-card:hover { transform: translateY(-4px); border-color: #667eea; }
+    .agent-card .emoji { font-size: 2rem; margin-bottom: 0.5rem; }
+    .agent-card .name { font-weight: 600; margin-bottom: 0.25rem; }
+    .agent-card .desc { font-size: 0.75rem; color: #888; }
+    .login-form {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-form input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #0d0d1a;
+      color: #fff;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+    .login-form input:focus { border-color: #667eea; }
+    .login-form button {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .login-form button:hover { opacity: 0.9; }
+    .error { color: #ff6b6b; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+  </style>
 </head>
 <body>
-  <div class="landing">
-    <div class="hero">
-      <!-- Language switcher + Theme toggle -->
-      <div class="landing-lang-switcher" id="langSwitcher">
-        <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">🌙</button>
-        <!-- Desktop: individual buttons -->
-        <button class="lang-btn lang-btn-desktop" data-lang="en">EN</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="pl">PL</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="pt">PT</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="es">ES</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="de">DE</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="fr">FR</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="it">IT</button>
-        <button class="lang-btn lang-btn-desktop" data-lang="zh">中文</button>
-        <!-- Mobile: dropdown -->
-        <div class="lang-dropdown lang-dropdown-landing" id="langDropdownLanding">
-          <button class="lang-dropdown-toggle" id="langDropdownToggleLanding">
-            <span id="currentLangLabelLanding">EN</span> ▾
-          </button>
-          <div class="lang-dropdown-menu" id="langDropdownMenuLanding">
-            <button class="lang-btn" data-lang="en">🇬🇧 English</button>
-            <button class="lang-btn" data-lang="pl">🇵🇱 Polski</button>
-            <button class="lang-btn" data-lang="pt">🇧🇷 Português</button>
-            <button class="lang-btn" data-lang="es">🇪🇸 Español</button>
-            <button class="lang-btn" data-lang="de">🇩🇪 Deutsch</button>
-            <button class="lang-btn" data-lang="fr">🇫🇷 Français</button>
-            <button class="lang-btn" data-lang="it">🇮🇹 Italiano</button>
-            <button class="lang-btn" data-lang="zh">🇨🇳 中文</button>
-          </div>
-        </div>
-      </div>
+  <div class="hero">
+    <h1>SpeakMate</h1>
+    <p class="subtitle">AI Language Tutor — Learn English & Portuguese with native speakers</p>
 
-      <div class="hero-logo">🧠</div>
-      <h1>ALLMA</h1>
-      <p class="subtitle" id="subtitle"></p>
-
-      <div class="features">
-        <div class="feature-card">
-          <span class="emoji">🔮</span>
-          <h3 data-i18n="feat_core_title"></h3>
-          <p data-i18n="feat_core_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">💕</span>
-          <h3 data-i18n="feat_rel_title"></h3>
-          <p data-i18n="feat_rel_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">💼</span>
-          <h3 data-i18n="feat_career_title"></h3>
-          <p data-i18n="feat_career_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">🏋️</span>
-          <h3 data-i18n="feat_body_title"></h3>
-          <p data-i18n="feat_body_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">🧘</span>
-          <h3 data-i18n="feat_mind_title"></h3>
-          <p data-i18n="feat_mind_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">⚡</span>
-          <h3 data-i18n="feat_habits_title"></h3>
-          <p data-i18n="feat_habits_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">🌑</span>
-          <h3 data-i18n="feat_shadow_title"></h3>
-          <p data-i18n="feat_shadow_desc"></p>
-        </div>
-        <div class="feature-card">
-          <span class="emoji">🥗</span>
-          <h3 data-i18n="feat_nutrition_title"></h3>
-          <p data-i18n="feat_nutrition_desc"></p>
-        </div>
-      </div>
-
-      <!-- Help link -->
-      <a href="/guide" class="help-link" id="helpLink">❓ <span data-i18n-help="guide">How It Works</span></a>
-
-      <!-- Trust & Privacy badges -->
-      <div class="trust-section" id="trustSection"></div>
-
-      <!-- PWA Install Prompt -->
-      <div class="install-banner" id="installBanner" style="display: none;">
-        <span class="install-icon">📲</span>
-        <span class="install-text" id="installText">Install ALLMA for quick access</span>
-        <button class="btn-primary install-btn" id="installBtn">Install</button>
-        <button class="install-dismiss" id="installDismiss">&times;</button>
-      </div>
-
-      <!-- Login: email only (no OTP) -->
-      <div class="login-section" id="loginSection">
-        <h2 id="loginTitle"></h2>
-        <form class="login-form" id="loginForm">
-          <input type="text" id="nameInput" data-i18n-placeholder="name_placeholder" autocomplete="given-name">
-          <input type="email" id="emailInput" data-i18n-placeholder="email_placeholder" required autocomplete="email">
-          <button type="submit" class="btn-primary" id="loginBtn"></button>
-          <div class="login-error" id="loginError"></div>
-        </form>
-      </div>
-
-      <div class="disclaimer" id="disclaimer"></div>
-
-      <!-- Install app link (below login) -->
-      <a href="#" class="install-link" id="installLinkLogin" style="display:none">📲 <span data-i18n-install="link">Install app on your phone</span></a>
+    <div class="agents-preview">
+      <div class="agent-card"><div class="emoji">🎓</div><div class="name">Alex</div><div class="desc">General English</div></div>
+      <div class="agent-card"><div class="emoji">🔥</div><div class="name">Zara</div><div class="desc">Gen-Z Slang</div></div>
+      <div class="agent-card"><div class="emoji">🧪</div><div class="name">Dr. Chen</div><div class="desc">Science</div></div>
+      <div class="agent-card"><div class="emoji">💕</div><div class="name">Sam</div><div class="desc">Dating</div></div>
+      <div class="agent-card"><div class="emoji">🎨</div><div class="name">Luna</div><div class="desc">Art & Philosophy</div></div>
+      <div class="agent-card"><div class="emoji">🇧🇷</div><div class="name">Rafael</div><div class="desc">Portuguese</div></div>
     </div>
 
-    <footer class="footer">
-      ALLMA &copy; 2026 &mdash; <span id="footerText"></span><br>
-      <a href="/guide" data-i18n-footer="guide">How It Works</a> &middot; <a href="/privacy" data-i18n-footer="privacy">Privacy</a> &middot; <a href="/terms" data-i18n-footer="terms">Terms</a>
-      <br><a href="#" class="install-link install-link-footer" id="installLinkFooter" style="display:none">📲 <span data-i18n-install="link">Install app</span></a>
-    </footer>
+    <div class="login-form">
+      <input type="email" id="emailInput" placeholder="Enter your email to start..." autocomplete="email" />
+      <button id="loginBtn" onclick="doLogin()">Start Learning →</button>
+      <p class="error" id="loginError"></p>
+    </div>
   </div>
 
   <script>
-    // ============================================================
-    // Theme Toggle (dark/light)
-    // ============================================================
-    (function initTheme() {
-      const toggle = document.getElementById('themeToggle');
-      function getPreferredTheme() {
-        const saved = localStorage.getItem('allma_theme');
-        if (saved) return saved;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      function applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('allma_theme', theme);
-        if (toggle) {
-          toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-          toggle.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        }
-        // PWA: update status bar / title bar color
-        const m = document.querySelector('meta[name="theme-color"]');
-        if (m) m.content = theme === 'dark' ? '#1A1A2E' : '#FAF8F5';
-      }
-      applyTheme(getPreferredTheme());
-      if (toggle) {
-        toggle.addEventListener('click', () => {
-          const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
-          applyTheme(current === 'dark' ? 'light' : 'dark');
-        });
-      }
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('allma_theme')) applyTheme(e.matches ? 'dark' : 'light');
-      });
-    })();
+    // Check if already logged in
+    const token = localStorage.getItem('sm_token');
+    if (token) window.location.href = '/app';
 
-    // ============================================================
-    // Translations
-    // ============================================================
-    const i18n = {
-      en: {
-        subtitle: '8 specialists. One you. Session whenever you want.<br>No waiting rooms. No judgment. Available 24/7.',
-        feat_core_title: 'Core Psychology',
-        feat_core_desc: 'Discover patterns that shape your life',
-        feat_rel_title: 'Relationships',
-        feat_rel_desc: 'Understand your patterns in love & connection',
-        feat_career_title: 'Career',
-        feat_career_desc: 'Find clarity when work feels overwhelming',
-        feat_body_title: 'Body & Fitness',
-        feat_body_desc: 'Reconnect with the body you forgot about',
-        feat_mind_title: 'Mindfulness',
-        feat_mind_desc: 'Learn to be here, now — without the noise',
-        feat_habits_title: 'Habits',
-        feat_habits_desc: 'Build the changes you\'ve been postponing',
-        feat_shadow_title: 'Shadow Work',
-        feat_shadow_desc: 'Meet the parts of you that hide in the dark',
-        feat_nutrition_title: 'Nutrition',
-        feat_nutrition_desc: 'Eat smarter — diets, calories & food tracking',
-        trust_private: '🤝 Everything stays between you and your coach. No one else sees your conversations.',
-        trust_no_account: '✉️ No account or password needed — just your email, and you\'re in.',
-        trust_encrypted: '🔒 AES-256 encrypted — your conversations are protected at rest and in transit.',
-        trust_no_training: '🚫 Your conversations are never used to train AI models. Your story stays yours.',
-        trust_gdpr: '🇪🇺 GDPR-compliant — you have the right to access, export, and delete all your data.',
-        trust_yours: '👤 Your words belong to you — we never share your data with anyone. You can delete your history anytime.',
-        trust_remember: '🧠 But keep in mind — if you delete your history, your coach forgets everything. It\'s like a first session again.',
-        trust_social: '💬 Trusted by a growing community — hundreds of coaching sessions and counting.',
-        trust_testimonial: '"I didn\'t expect a conversation with AI to feel this real. It asked me things no one ever asked before." — beta user',
-        trust_opensource: '🔓 Open source — our code is publicly available. Full transparency, nothing to hide.',
-        login_title: 'Talk Now — Free',
-        name_placeholder: 'Your name (optional)',
-        email_placeholder: 'Your email',
-        login_btn: 'Start Free Session',
-        login_btn_loading: 'Starting...',
-        disclaimer: 'ALLMA supports your personal growth alongside professional therapy.<br>In crisis? Contact emergency services or a crisis helpline.',
-        footer: 'AI-Powered Personal Coaching',
-        guide: 'How It Works',
-        privacy: 'Privacy',
-        terms: 'Important Info',
-      },
-      pl: {
-        subtitle: '8 specjalistów. Jeden Ty. Sesja kiedy chcesz.<br>Bez poczekalni. Bez oceniania. Dostępny 24/7.',
-        feat_core_title: 'Psychologia',
-        feat_core_desc: 'Odkryj wzorce, które kształtują Twoje życie',
-        feat_rel_title: 'Relacje',
-        feat_rel_desc: 'Zrozum swoje wzorce w miłości i bliskości',
-        feat_career_title: 'Kariera',
-        feat_career_desc: 'Znajdź jasność, gdy praca Cię przytłacza',
-        feat_body_title: 'Ciało i Fitness',
-        feat_body_desc: 'Połącz się z ciałem, o którym zapomniałeś',
-        feat_mind_title: 'Mindfulness',
-        feat_mind_desc: 'Naucz się być tu i teraz — bez szumu',
-        feat_habits_title: 'Nawyki',
-        feat_habits_desc: 'Zbuduj zmiany, które ciągle odkładasz',
-        feat_shadow_title: 'Praca z Cieniem',
-        feat_shadow_desc: 'Spotkaj te części siebie, które chowają się w ciemności',
-        feat_nutrition_title: 'Dietetyka',
-        feat_nutrition_desc: 'Jedz mądrzej — diety, kalorie i tracking posiłków',
-        trust_private: '🤝 Wszystko zostaje między Tobą a Twoim coachem. Nikt inny nie widzi Twoich rozmów.',
-        trust_no_account: '✉️ Bez konta i hasła — wystarczy Twój email i zaczynasz.',
-        trust_encrypted: '🔒 Szyfrowanie AES-256 — Twoje rozmowy są chronione w spoczynku i w tranzycie.',
-        trust_no_training: '🚫 Twoje rozmowy nigdy nie są wykorzystywane do trenowania AI. Twoja historia zostaje Twoja.',
-        trust_gdpr: '🇪🇺 Zgodność z RODO — masz prawo dostępu, eksportu i usunięcia swoich danych.',
-        trust_yours: '👤 Twoje słowa należą do Ciebie — nie dzielimy się Twoimi danymi z nikim. Możesz usunąć historię w dowolnym momencie.',
-        trust_remember: '🧠 Ale pamiętaj — jeśli usuniesz historię, Twój coach zapomni wszystko. To jak pierwsza sesja od nowa.',
-        trust_social: '💬 Zaufane przez rosnącą społeczność — setki sesji coachingowych i wciąż rośnie.',
-        trust_testimonial: '"Nie spodziewałem się, że rozmowa z AI może być tak prawdziwa. Zadał mi pytania, których nikt wcześniej nie zadał." — beta tester',
-        trust_opensource: '🔓 Open source — nasz kod jest publicznie dostępny. Pełna transparentność, nic do ukrycia.',
-        login_title: 'Porozmawiaj — za darmo',
-        name_placeholder: 'Twoje imię (opcjonalnie)',
-        email_placeholder: 'Twój email',
-        login_btn: 'Zacznij darmową sesję',
-        login_btn_loading: 'Łączenie...',
-        disclaimer: 'ALLMA wspiera Twój rozwój obok profesjonalnej terapii.<br>W sytuacji kryzysowej skontaktuj się z pogotowiem lub telefonem zaufania.',
-        footer: 'Osobisty Coaching Wspierany przez AI',
-        guide: 'Jak to działa',
-        privacy: 'Prywatność',
-        terms: 'Ważne info',
-      },
-      pt: {
-        subtitle: '8 especialistas. Um você. Sessão quando quiser.<br>Sem salas de espera. Sem julgamento. Disponível 24/7.',
-        feat_core_title: 'Psicologia',
-        feat_core_desc: 'Descubra os padrões que moldam sua vida',
-        feat_rel_title: 'Relacionamentos',
-        feat_rel_desc: 'Entenda seus padrões no amor e na conexão',
-        feat_career_title: 'Carreira',
-        feat_career_desc: 'Encontre clareza quando o trabalho pesa',
-        feat_body_title: 'Corpo e Fitness',
-        feat_body_desc: 'Reconecte-se com o corpo que você esqueceu',
-        feat_mind_title: 'Mindfulness',
-        feat_mind_desc: 'Aprenda a estar aqui, agora — sem o ruído',
-        feat_habits_title: 'Hábitos',
-        feat_habits_desc: 'Construa as mudanças que você adia',
-        feat_shadow_title: 'Trabalho de Sombra',
-        feat_shadow_desc: 'Conheça as partes de você que se escondem',
-        feat_nutrition_title: 'Nutrição',
-        feat_nutrition_desc: 'Coma melhor — dietas, calorias e tracking de refeições',
-        trust_private: '🤝 Tudo fica entre você e seu coach. Ninguém mais vê suas conversas.',
-        trust_no_account: '✉️ Sem conta ou senha — basta seu email e você já pode começar.',
-        trust_encrypted: '🔒 Criptografia AES-256 — suas conversas são protegidas em repouso e em trânsito.',
-        trust_no_training: '🚫 Suas conversas nunca são usadas para treinar modelos de IA. Sua história é só sua.',
-        trust_gdpr: '🇪🇺 Compatível com LGPD/GDPR — você tem o direito de acessar, exportar e excluir seus dados.',
-        trust_yours: '👤 Suas palavras pertencem a você — nunca compartilhamos seus dados com ninguém. Você pode excluir seu histórico a qualquer momento.',
-        trust_remember: '🧠 Mas lembre-se — se você excluir seu histórico, seu coach esquece tudo. É como uma primeira sessão de novo.',
-        trust_social: '💬 Uma comunidade que cresce — centenas de sessões de coaching e contando.',
-        trust_testimonial: '"Não esperava que uma conversa com IA pudesse ser tão real. Fez perguntas que ninguém nunca me fez." — beta tester',
-        trust_opensource: '🔓 Open source — nosso código é publicamente acessível. Transparência total, nada a esconder.',
-        login_title: 'Converse agora — grátis',
-        name_placeholder: 'Seu nome (opcional)',
-        email_placeholder: 'Seu email',
-        login_btn: 'Iniciar sessão grátis',
-        login_btn_loading: 'Conectando...',
-        disclaimer: 'ALLMA apoia seu crescimento pessoal ao lado da terapia profissional.<br>Em crise? Ligue para o CVV (188) ou serviços de emergência.',
-        footer: 'Coaching Pessoal com Inteligência Artificial',
-        guide: 'Como Funciona',
-        privacy: 'Privacidade',
-        terms: 'Info Importante',
-      },
-      es: {
-        subtitle: '8 especialistas. Un tú. Sesión cuando quieras.<br>Sin salas de espera. Sin juicio. Disponible 24/7.',
-        feat_core_title: 'Psicología',
-        feat_core_desc: 'Descubre los patrones que definen tu vida',
-        feat_rel_title: 'Relaciones',
-        feat_rel_desc: 'Comprende tus patrones en el amor y la conexión',
-        feat_career_title: 'Carrera',
-        feat_career_desc: 'Encuentra claridad cuando el trabajo te abruma',
-        feat_body_title: 'Cuerpo y Fitness',
-        feat_body_desc: 'Reconecta con el cuerpo que olvidaste',
-        feat_mind_title: 'Mindfulness',
-        feat_mind_desc: 'Aprende a estar aquí, ahora — sin ruido',
-        feat_habits_title: 'Hábitos',
-        feat_habits_desc: 'Construye los cambios que sigues posponiendo',
-        feat_shadow_title: 'Trabajo de Sombra',
-        feat_shadow_desc: 'Conoce las partes de ti que se ocultan',
-        feat_nutrition_title: 'Nutrición',
-        feat_nutrition_desc: 'Come mejor — dietas, calorías y seguimiento de comidas',
-        trust_private: '🤝 Todo queda entre tú y tu coach. Nadie más ve tus conversaciones.',
-        trust_no_account: '✉️ Sin cuenta ni contraseña — solo tu email y listo.',
-        trust_encrypted: '🔒 Cifrado AES-256 — tus conversaciones están protegidas en reposo y en tránsito.',
-        trust_no_training: '🚫 Tus conversaciones nunca se usan para entrenar modelos de IA. Tu historia es tuya.',
-        trust_gdpr: '🇪🇺 Compatible con GDPR — tienes derecho a acceder, exportar y eliminar tus datos.',
-        trust_yours: '👤 Tus palabras te pertenecen — nunca compartimos tus datos con nadie. Puedes eliminar tu historial en cualquier momento.',
-        trust_remember: '🧠 Pero ten en cuenta — si eliminas tu historial, tu coach lo olvida todo. Es como una primera sesión de nuevo.',
-        trust_social: '💬 Una comunidad que crece — cientos de sesiones de coaching y contando.',
-        trust_testimonial: '"No esperaba que una conversación con IA pudiera ser tan real. Me hizo preguntas que nadie me había hecho." — beta tester',
-        trust_opensource: '🔓 Open source — nuestro código es de acceso público. Transparencia total, nada que ocultar.',
-        login_title: 'Habla ahora — gratis',
-        name_placeholder: 'Tu nombre (opcional)',
-        email_placeholder: 'Tu email',
-        login_btn: 'Iniciar sesión gratis',
-        login_btn_loading: 'Conectando...',
-        disclaimer: 'ALLMA apoya tu crecimiento personal junto a la terapia profesional.<br>¿En crisis? Contacta servicios de emergencia o una línea de ayuda.',
-        footer: 'Coaching Personal con Inteligencia Artificial',
-        guide: 'Cómo Funciona',
-        privacy: 'Privacidad',
-        terms: 'Info Importante',
-      },
-      de: {
-        subtitle: '8 Spezialisten. Ein Du. Sitzung wann du willst.<br>Kein Wartezimmer. Kein Urteil. Rund um die Uhr verfügbar.',
-        feat_core_title: 'Psychologie',
-        feat_core_desc: 'Entdecke die Muster, die dein Leben formen',
-        feat_rel_title: 'Beziehungen',
-        feat_rel_desc: 'Verstehe deine Muster in Liebe und Nähe',
-        feat_career_title: 'Karriere',
-        feat_career_desc: 'Finde Klarheit, wenn die Arbeit dich überwältigt',
-        feat_body_title: 'Körper & Fitness',
-        feat_body_desc: 'Verbinde dich mit dem Körper, den du vergessen hast',
-        feat_mind_title: 'Achtsamkeit',
-        feat_mind_desc: 'Lerne hier zu sein, jetzt — ohne den Lärm',
-        feat_habits_title: 'Gewohnheiten',
-        feat_habits_desc: 'Baue die Veränderungen, die du aufschiebst',
-        feat_shadow_title: 'Schattenarbeit',
-        feat_shadow_desc: 'Begegne den Teilen von dir, die sich im Dunkeln verstecken',
-        feat_nutrition_title: 'Ernährung',
-        feat_nutrition_desc: 'Iss klüger — Diäten, Kalorien & Mahlzeit-Tracking',
-        trust_private: '🤝 Alles bleibt zwischen Ihnen und Ihrem Coach. Niemand sonst sieht Ihre Gespräche.',
-        trust_no_account: '✉️ Kein Konto oder Passwort nötig — nur Ihre E-Mail und los geht\'s.',
-        trust_encrypted: '🔒 AES-256-Verschlüsselung — Ihre Gespräche sind im Ruhezustand und bei der Übertragung geschützt.',
-        trust_no_training: '🚫 Ihre Gespräche werden niemals zum Trainieren von KI-Modellen verwendet. Ihre Geschichte bleibt Ihre.',
-        trust_gdpr: '🇪🇺 DSGVO-konform — Sie haben das Recht auf Zugang, Export und Löschung Ihrer Daten.',
-        trust_yours: '👤 Ihre Worte gehören Ihnen — wir teilen Ihre Daten mit niemandem. Sie können Ihren Verlauf jederzeit löschen.',
-        trust_remember: '🧠 Aber bedenken Sie — wenn Sie Ihren Verlauf löschen, vergisst Ihr Coach alles. Es ist wie eine erste Sitzung von vorn.',
-        trust_social: '💬 Eine wachsende Gemeinschaft vertraut uns — Hunderte von Coaching-Sitzungen und es werden mehr.',
-        trust_testimonial: '"Ich hätte nicht erwartet, dass ein Gespräch mit KI so real sein kann. Es stellte mir Fragen, die mir niemand zuvor gestellt hat." — Beta-Tester',
-        trust_opensource: '🔓 Open Source — unser Code ist öffentlich zugänglich. Volle Transparenz, nichts zu verbergen.',
-        login_title: 'Jetzt sprechen — kostenlos',
-        name_placeholder: 'Dein Name (optional)',
-        email_placeholder: 'Deine E-Mail',
-        login_btn: 'Kostenlose Sitzung starten',
-        login_btn_loading: 'Verbindung...',
-        disclaimer: 'ALLMA unterstützt dein persönliches Wachstum neben professioneller Therapie.<br>In einer Krise? Kontaktiere den Notdienst oder die Telefonseelsorge.',
-        footer: 'Persönliches Coaching mit Künstlicher Intelligenz',
-        guide: 'Wie es funktioniert',
-        privacy: 'Datenschutz',
-        terms: 'Wichtige Info',
-      },
-      fr: {
-        subtitle: '8 spécialistes. Un seul vous. Séance quand vous voulez.<br>Pas de salle d\'attente. Pas de jugement. Disponible 24h/24.',
-        feat_core_title: 'Psychologie',
-        feat_core_desc: 'Découvrez les schémas qui façonnent votre vie',
-        feat_rel_title: 'Relations',
-        feat_rel_desc: 'Comprenez vos schémas en amour et en connexion',
-        feat_career_title: 'Carrière',
-        feat_career_desc: 'Trouvez la clarté quand le travail vous submerge',
-        feat_body_title: 'Corps et Fitness',
-        feat_body_desc: 'Reconnectez-vous avec le corps que vous avez oublié',
-        feat_mind_title: 'Pleine Conscience',
-        feat_mind_desc: 'Apprenez à être ici, maintenant — sans le bruit',
-        feat_habits_title: 'Habitudes',
-        feat_habits_desc: 'Construisez les changements que vous repoussez',
-        feat_shadow_title: "Travail de l'Ombre",
-        feat_shadow_desc: 'Rencontrez les parties de vous qui se cachent dans le noir',
-        feat_nutrition_title: 'Nutrition',
-        feat_nutrition_desc: 'Mangez mieux — régimes, calories et suivi des repas',
-        trust_private: '🤝 Tout reste entre vous et votre coach. Personne d\'autre ne voit vos conversations.',
-        trust_no_account: '✉️ Pas de compte ni de mot de passe — juste votre email et c\'est parti.',
-        trust_encrypted: '🔒 Chiffrement AES-256 — vos conversations sont protégées au repos et en transit.',
-        trust_no_training: '🚫 Vos conversations ne sont jamais utilisées pour entraîner des modèles d\'IA. Votre histoire reste la vôtre.',
-        trust_gdpr: '🇪🇺 Conforme au RGPD — vous avez le droit d\'accéder, exporter et supprimer vos données.',
-        trust_yours: '👤 Vos mots vous appartiennent — nous ne partageons vos données avec personne. Vous pouvez supprimer votre historique à tout moment.',
-        trust_remember: '🧠 Mais gardez à l\'esprit — si vous supprimez votre historique, votre coach oublie tout. C\'est comme une première séance à nouveau.',
-        trust_social: '💬 Une communauté grandissante nous fait confiance — des centaines de séances de coaching et ça continue.',
-        trust_testimonial: '"Je ne m\'attendais pas à ce qu\'une conversation avec l\'IA soit si réelle. Elle m\'a posé des questions que personne ne m\'avait jamais posées." — beta testeur',
-        trust_opensource: '🔓 Open source — notre code est accessible au public. Transparence totale, rien à cacher.',
-        login_title: 'Parlez maintenant — gratuit',
-        name_placeholder: 'Votre prénom (optionnel)',
-        email_placeholder: 'Votre email',
-        login_btn: 'Démarrer une séance gratuite',
-        login_btn_loading: 'Connexion...',
-        disclaimer: "ALLMA soutient votre développement personnel aux côtés de la thérapie professionnelle.<br>En crise ? Contactez les services d'urgence ou une ligne d'aide.",
-        footer: 'Coaching Personnel par Intelligence Artificielle',
-        guide: 'Comment ça marche',
-        privacy: 'Confidentialité',
-        terms: 'Info Importante',
-      },
-      it: {
-        subtitle: '8 specialisti. Un solo te. Sessione quando vuoi.<br>Nessuna sala d\'attesa. Nessun giudizio. Disponibile 24/7.',
-        feat_core_title: 'Psicologia',
-        feat_core_desc: 'Scopri i pattern che plasmano la tua vita',
-        feat_rel_title: 'Relazioni',
-        feat_rel_desc: 'Comprendi i tuoi schemi nell\'amore e nella connessione',
-        feat_career_title: 'Carriera',
-        feat_career_desc: 'Trova chiarezza quando il lavoro ti sopraffà',
-        feat_body_title: 'Corpo e Fitness',
-        feat_body_desc: 'Riconnettiti con il corpo che hai dimenticato',
-        feat_mind_title: 'Mindfulness',
-        feat_mind_desc: 'Impara ad essere qui, ora — senza il rumore',
-        feat_habits_title: 'Abitudini',
-        feat_habits_desc: 'Costruisci i cambiamenti che continui a rimandare',
-        feat_shadow_title: "Lavoro sull'Ombra",
-        feat_shadow_desc: 'Incontra le parti di te che si nascondono nel buio',
-        feat_nutrition_title: 'Nutrizione',
-        feat_nutrition_desc: 'Mangia meglio — diete, calorie e tracking dei pasti',
-        trust_private: '🤝 Tutto resta tra te e il tuo coach. Nessun altro vede le tue conversazioni.',
-        trust_no_account: '✉️ Nessun account o password necessari — solo la tua email e sei dentro.',
-        trust_encrypted: '🔒 Crittografia AES-256 — le tue conversazioni sono protette a riposo e in transito.',
-        trust_no_training: '🚫 Le tue conversazioni non vengono mai usate per addestrare modelli di IA. La tua storia resta tua.',
-        trust_gdpr: '🇪🇺 Conforme al GDPR — hai il diritto di accedere, esportare ed eliminare i tuoi dati.',
-        trust_yours: '👤 Le tue parole appartengono a te — non condividiamo mai i tuoi dati con nessuno. Puoi eliminare la tua cronologia in qualsiasi momento.',
-        trust_remember: '🧠 Ma tieni presente — se elimini la cronologia, il tuo coach dimentica tutto. È come una prima sessione da capo.',
-        trust_social: '💬 Una comunità in crescita si fida di noi — centinaia di sessioni di coaching e continuano ad aumentare.',
-        trust_testimonial: '"Non mi aspettavo che una conversazione con l\'IA potesse essere così reale. Mi ha fatto domande che nessuno mi aveva mai fatto." — beta tester',
-        trust_opensource: '🔓 Open source — il nostro codice è accessibile pubblicamente. Piena trasparenza, nulla da nascondere.',
-        login_title: 'Parla ora — gratis',
-        name_placeholder: 'Il tuo nome (opzionale)',
-        email_placeholder: 'La tua email',
-        login_btn: 'Inizia sessione gratuita',
-        login_btn_loading: 'Connessione...',
-        disclaimer: "ALLMA supporta la tua crescita personale accanto alla terapia professionale.<br>In crisi? Contatta i servizi di emergenza o il Telefono Amico.",
-        footer: 'Coaching Personale con Intelligenza Artificiale',
-        guide: 'Come Funziona',
-        privacy: 'Privacy',
-        terms: 'Info Importante',
-      },
-      zh: {
-        subtitle: '8位专家。一个你。随时开始。<br>无需等待。不被评判。全天候可用。',
-        feat_core_title: '核心心理学',
-        feat_core_desc: '发现塑造你生活的模式',
-        feat_rel_title: '人际关系',
-        feat_rel_desc: '理解你在爱与连接中的模式',
-        feat_career_title: '职业发展',
-        feat_career_desc: '当工作让你喘不过气时找到清晰',
-        feat_body_title: '身体与健身',
-        feat_body_desc: '重新连接你遗忘的身体',
-        feat_mind_title: '正念',
-        feat_mind_desc: '学会活在当下——远离喧嚣',
-        feat_habits_title: '习惯',
-        feat_habits_desc: '建立你一直拖延的改变',
-        feat_shadow_title: '阴影工作',
-        feat_shadow_desc: '遇见隐藏在黑暗中的自己',
-        feat_nutrition_title: '营养学',
-        feat_nutrition_desc: '吃得更聪明——饮食、卡路里和饮食追踪',
-        trust_private: '🤝 一切都在您和教练之间。没有其他人能看到您的对话。',
-        trust_no_account: '✉️ 无需账户或密码——只需您的电子邮件即可开始。',
-        trust_encrypted: '🔒 AES-256加密——您的对话在存储和传输过程中均受保护。',
-        trust_no_training: '🚫 您的对话绝不会被用于训练AI模型。您的故事属于您。',
-        trust_gdpr: '🇪🇺 符合GDPR——您有权访问、导出和删除您的数据。',
-        trust_yours: '👤 您的话语属于您——我们绝不与任何人共享您的数据。您可以随时删除您的历史记录。',
-        trust_remember: '🧠 但请记住——如果您删除历史记录，您的教练将忘记一切。就像重新开始第一次会话。',
-        trust_social: '💬 越来越多的用户信任我们——数百次教练会话，且仍在增长。',
-        trust_testimonial: '"没想到与AI的对话能如此真实。它问了我从没人问过的问题。" — 内测用户',
-        trust_opensource: '🔓 开源——我们的代码公开可用。完全透明，无需隐藏。',
-        login_title: '立即对话 — 免费',
-        name_placeholder: '您的姓名（可选）',
-        email_placeholder: '您的电子邮件',
-        login_btn: '开始免费会话',
-        login_btn_loading: '连接中...',
-        disclaimer: 'ALLMA支持您的个人成长，与专业治疗相辅相成。<br>如果您处于危机中，请联系紧急服务或心理援助热线。',
-        footer: 'AI驱动的个人教练',
-        guide: '如何使用',
-        privacy: '隐私',
-        terms: '重要信息',
-      },
-    };
+    async function doLogin() {
+      const email = document.getElementById('emailInput').value.trim();
+      const errorEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
 
-    // ============================================================
-    // Language detection & switching
-    // ============================================================
-    let currentLang = 'en';
+      if (!email) { errorEl.textContent = 'Please enter your email'; errorEl.style.display = 'block'; return; }
 
-    function detectLanguage() {
-      const saved = localStorage.getItem('allma_lang');
-      if (saved && i18n[saved]) return saved;
-
-      const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-      const langMap = { pl: 'pl', pt: 'pt', es: 'es', de: 'de', fr: 'fr', it: 'it', zh: 'zh' };
-      for (const [prefix, lang] of Object.entries(langMap)) {
-        if (browserLang.startsWith(prefix)) return lang;
-      }
-      return 'en';
-    }
-
-    function setLanguage(lang) {
-      currentLang = lang;
-      localStorage.setItem('allma_lang', lang);
-      const t = i18n[lang];
-
-      // Update subtitle
-      document.getElementById('subtitle').innerHTML = t.subtitle;
-
-      // Update feature cards
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (t[key]) el.textContent = t[key];
-      });
-
-      // Update placeholders
-      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-        const key = el.getAttribute('data-i18n-placeholder');
-        if (t[key]) el.placeholder = t[key];
-      });
-
-      // Update specific elements
-      document.getElementById('loginTitle').textContent = t.login_title;
-      document.getElementById('loginBtn').textContent = t.login_btn;
-      document.getElementById('disclaimer').innerHTML = t.disclaimer;
-      document.getElementById('footerText').textContent = t.footer;
-
-      // Footer links
-      document.querySelectorAll('[data-i18n-footer]').forEach(el => {
-        const key = el.getAttribute('data-i18n-footer');
-        if (t[key]) el.textContent = t[key];
-      });
-
-      // Help link
-      document.querySelectorAll('[data-i18n-help]').forEach(el => {
-        const key = el.getAttribute('data-i18n-help');
-        if (t[key]) el.textContent = t[key];
-      });
-
-      // Trust & Privacy section
-      const trustEl = document.getElementById('trustSection');
-      if (trustEl && t.trust_private) {
-        trustEl.innerHTML = `
-          <div class="trust-badge trust-highlight">${t.trust_private}</div>
-          <div class="trust-badge">${t.trust_no_account}</div>
-          <div class="trust-badge">${t.trust_encrypted}</div>
-          <div class="trust-badge">${t.trust_no_training}</div>
-          <div class="trust-badge">${t.trust_gdpr}</div>
-          <div class="trust-badge">${t.trust_yours}</div>
-          <div class="trust-badge trust-warning">${t.trust_remember}</div>
-          <div class="trust-badge trust-opensource">${t.trust_opensource}</div>
-        `;
-      }
-
-      // Update desktop lang buttons
-      document.querySelectorAll('#langSwitcher .lang-btn-desktop').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-      });
-
-      // Update mobile dropdown label
-      const dropLabel = document.getElementById('currentLangLabelLanding');
-      if (dropLabel) {
-        const labelMap = { en: 'EN', pl: 'PL', pt: 'PT', es: 'ES', de: 'DE', fr: 'FR', it: 'IT', zh: '中文' };
-        dropLabel.textContent = labelMap[lang] || lang.toUpperCase();
-      }
-      // Mark active in dropdown menu
-      document.querySelectorAll('#langDropdownMenuLanding .lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-      });
-
-      // Update page title
-      const titles = {
-        en: 'Your Personal Psychology Coach',
-        pl: 'Twoj Osobisty Coach Psychologiczny',
-        pt: 'Seu Coach Pessoal de Psicologia',
-        es: 'Tu Coach Personal de Psicologia',
-        de: 'Dein Personlicher Psychologie-Coach',
-        fr: 'Votre Coach Personnel en Psychologie',
-        it: 'Il Tuo Coach Personale di Psicologia',
-        zh: '\u60a8\u7684\u4e2a\u4eba\u5fc3\u7406\u6559\u7ec3',
-      };
-      document.title = 'ALLMA — ' + (titles[lang] || titles.en);
-    }
-
-    // Init language
-    currentLang = detectLanguage();
-    setLanguage(currentLang);
-
-    // Language switcher — desktop buttons
-    document.querySelectorAll('#langSwitcher .lang-btn-desktop').forEach(btn => {
-      btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
-    });
-
-    // Language switcher — mobile dropdown
-    (function initLandingDropdown() {
-      const toggle = document.getElementById('langDropdownToggleLanding');
-      const menu = document.getElementById('langDropdownMenuLanding');
-      if (!toggle || !menu) return;
-
-      toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        menu.classList.toggle('open');
-      });
-
-      document.addEventListener('click', () => {
-        menu.classList.remove('open');
-      });
-
-      menu.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          setLanguage(btn.dataset.lang);
-          menu.classList.remove('open');
-        });
-      });
-    })();
-
-    // ============================================================
-    // Auth check
-    // ============================================================
-    (async function checkAuth() {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        const data = await res.json();
-        if (data.authenticated) {
-          window.location.href = '/chat';
-        }
-      } catch {}
-    })();
-
-    // ============================================================
-    // DOM — Direct login (no OTP)
-    // ============================================================
-    const form = document.getElementById('loginForm');
-    const emailInput = document.getElementById('emailInput');
-    const nameInput = document.getElementById('nameInput');
-    const loginBtn = document.getElementById('loginBtn');
-    const loginError = document.getElementById('loginError');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = emailInput.value.trim();
-      const name = nameInput.value.trim();
-      if (!email) return;
-
-      const t = i18n[currentLang];
-      loginBtn.disabled = true;
-      loginBtn.textContent = t.login_btn_loading;
-      loginError.style.display = 'none';
+      btn.textContent = 'Logging in...';
+      btn.disabled = true;
 
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, name, language: currentLang }),
-          credentials: 'include',
+          body: JSON.stringify({ email })
         });
         const data = await res.json();
 
-        if (data.ok) {
-          window.location.href = '/chat';
-        } else {
-          throw new Error(data.error || 'Login failed');
-        }
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        localStorage.setItem('sm_token', data.token);
+        localStorage.setItem('sm_email', email);
+        window.location.href = '/app';
       } catch (err) {
-        loginError.textContent = err.message;
-        loginError.style.display = 'block';
-      } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = t.login_btn;
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        btn.textContent = 'Start Learning →';
+        btn.disabled = false;
       }
+    }
+
+    document.getElementById('emailInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
     });
   </script>
-
-  <!-- PWA Install Prompt — Smart banner: Android native + iOS manual -->
-  <script>
-    (function() {
-      const installI18n = {
-        en: { text: 'Install ALLMA for quick access', btn: 'Install', menuHint: 'Tap ⋮ menu → "Install app"', iosHint: 'Tap Share ⬆ → "Add to Home Screen"' },
-        pl: { text: 'Zainstaluj ALLMA na telefonie', btn: 'Instaluj', menuHint: 'Kliknij ⋮ menu → „Zainstaluj aplikację"', iosHint: 'Kliknij Udostępnij ⬆ → „Dodaj do ekranu głównego"' },
-        pt: { text: 'Instale o ALLMA para acesso rápido', btn: 'Instalar', menuHint: 'Toque ⋮ menu → "Instalar app"', iosHint: 'Toque Compartilhar ⬆ → "Adicionar à Tela Inicial"' },
-        es: { text: 'Instala ALLMA para acceso rápido', btn: 'Instalar', menuHint: 'Toca ⋮ menú → "Instalar app"', iosHint: 'Toca Compartir ⬆ → "Añadir a pantalla de inicio"' },
-        de: { text: 'ALLMA installieren für schnellen Zugriff', btn: 'Installieren', menuHint: 'Tippe ⋮ Menü → „App installieren"', iosHint: 'Tippe Teilen ⬆ → „Zum Home-Bildschirm"' },
-        fr: { text: 'Installez ALLMA pour un accès rapide', btn: 'Installer', menuHint: 'Appuyez ⋮ menu → « Installer »', iosHint: 'Appuyez Partager ⬆ → « Sur l\'écran d\'accueil »' },
-        it: { text: 'Installa ALLMA per un accesso rapido', btn: 'Installa', menuHint: 'Tocca ⋮ menu → "Installa app"', iosHint: 'Tocca Condividi ⬆ → "Aggiungi alla Home"' },
-        zh: { text: '安装 ALLMA 快速访问', btn: '安装', menuHint: '点击 ⋮ 菜单 → "安装应用"', iosHint: '点击 分享 ⬆ → "添加到主屏幕"' },
-      };
-
-      let deferredPrompt = null;
-      const banner = document.getElementById('installBanner');
-      const installBtn = document.getElementById('installBtn');
-      const installDismiss = document.getElementById('installDismiss');
-      const installText = document.getElementById('installText');
-
-      // Platform detection
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-      const isAndroid = /Android/.test(navigator.userAgent);
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-
-      // Dismiss: respect for 7 days (not forever)
-      function isDismissed() {
-        const ts = localStorage.getItem('allma_install_dismissed_at');
-        if (!ts) return false;
-        const days = (Date.now() - parseInt(ts)) / (1000 * 60 * 60 * 24);
-        return days < 7;
-      }
-
-      function getLang() { return localStorage.getItem('allma_lang') || 'en'; }
-
-      function updateInstallLang() {
-        const lang = getLang();
-        const t = installI18n[lang] || installI18n.en;
-        if (isIOS) {
-          if (installText) installText.innerHTML = t.text + '<br><small class="install-hint">' + t.iosHint + '</small>';
-          if (installBtn) installBtn.style.display = 'none';
-        } else if (deferredPrompt) {
-          if (installText) installText.textContent = t.text;
-          if (installBtn) { installBtn.textContent = t.btn; installBtn.style.display = ''; }
-        } else {
-          if (installText) installText.innerHTML = t.text + '<br><small class="install-hint">' + t.menuHint + '</small>';
-          if (installBtn) installBtn.style.display = 'none';
-        }
-      }
-
-      function showBanner() {
-        if (isStandalone || isDismissed()) return;
-        updateInstallLang();
-        if (banner) banner.style.display = 'flex';
-      }
-
-      // Android: listen for native prompt
-      window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-        showBanner();
-      });
-
-      // Show banner on load for mobile (Android without prompt yet, or iOS)
-      if ((isAndroid || isIOS) && !isStandalone && !isDismissed()) {
-        // Small delay so page renders first
-        setTimeout(showBanner, 1500);
-      }
-
-      if (installBtn) {
-        installBtn.addEventListener('click', async function() {
-          if (!deferredPrompt) return;
-          deferredPrompt.prompt();
-          const result = await deferredPrompt.userChoice;
-          deferredPrompt = null;
-          if (banner) banner.style.display = 'none';
-        });
-      }
-
-      if (installDismiss) {
-        installDismiss.addEventListener('click', function() {
-          if (banner) banner.style.display = 'none';
-          localStorage.setItem('allma_install_dismissed_at', String(Date.now()));
-        });
-      }
-
-      // ── Install links (below login + footer) ──
-      const installLinkLogin = document.getElementById('installLinkLogin');
-      const installLinkFooter = document.getElementById('installLinkFooter');
-
-      const installLinkI18n = {
-        en: 'Install app on your phone',
-        pl: 'Zainstaluj aplikację na telefonie',
-        pt: 'Instale o app no celular',
-        es: 'Instala la app en tu teléfono',
-        de: 'App auf dem Handy installieren',
-        fr: 'Installer l\'app sur votre téléphone',
-        it: 'Installa l\'app sul telefono',
-        zh: '在手机上安装应用',
-      };
-
-      function updateInstallLinks() {
-        const lang = getLang();
-        const label = installLinkI18n[lang] || installLinkI18n.en;
-        document.querySelectorAll('[data-i18n-install="link"]').forEach(function(el) {
-          el.textContent = label;
-        });
-      }
-
-      function handleInstallLinkClick(e) {
-        e.preventDefault();
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(function() { deferredPrompt = null; });
-        } else {
-          // Scroll to banner or show it
-          showBanner();
-          if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
-
-      // Show install links on mobile (not when already installed)
-      if ((isAndroid || isIOS) && !isStandalone) {
-        if (installLinkLogin) { installLinkLogin.style.display = ''; installLinkLogin.addEventListener('click', handleInstallLinkClick); }
-        if (installLinkFooter) { installLinkFooter.style.display = ''; installLinkFooter.addEventListener('click', handleInstallLinkClick); }
-        updateInstallLinks();
-      }
-
-      // Update language when lang buttons change
-      document.querySelectorAll('.lang-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() { updateInstallLang(); updateInstallLinks(); });
-      });
-    })();
-  </script>
-  <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(()=>{});</script>
 </body>
 </html>

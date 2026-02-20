@@ -3,6 +3,7 @@
  */
 
 export type ModelTier = "fast" | "balanced" | "deep";
+export type TargetLanguage = "en" | "pt-BR";
 
 export interface AgentConfig {
   id: string;
@@ -12,8 +13,25 @@ export interface AgentConfig {
   description: string;
   promptFile: string;
   commands: string[];
-  allowedTools: string[] | null;
-  maxTurns?: number;
+  targetLanguage: TargetLanguage;
+  voice: string; // edge-tts voice name
+}
+
+export interface Correction {
+  original: string;
+  corrected: string;
+  rule: string;
+}
+
+export interface VocabSuggestion {
+  word: string;
+  alternatives: string;
+}
+
+export interface ParsedResponse {
+  response: string;
+  corrections: Correction[];
+  vocabulary: VocabSuggestion[];
 }
 
 export interface Message {
@@ -21,28 +39,5 @@ export interface Message {
   content: string;
   timestamp?: string;
   agentId?: string;
-}
-
-export interface UserProfile {
-  id: string;
-  telegram_id: number;
-  username?: string | null;
-  first_name?: string | null;
-  email?: string | null;
-  language: string;
-  timezone: string;
-  metadata?: Record<string, any>;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface MemoryFact {
-  id?: string;
-  user_id: string;
-  type: string;
-  content: string;
-  source_agent?: string;
-  metadata?: Record<string, any>;
-  created_at?: string;
-  updated_at?: string;
+  parsed?: ParsedResponse;
 }

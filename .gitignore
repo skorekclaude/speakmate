@@ -29,6 +29,7 @@ Thumbs.db
 *.log
 logs/
 __pycache__/
+temp/
 
 # State files
 checkins-state.json

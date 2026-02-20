@@ -1,189 +1,159 @@
 /**
- * SpeakMate — Conversation Handler
+ * SpeakMate Conversation Engine
  *
- * Core message processing for language tutoring.
- * Flow:
- *   1. Classify agent (conversation/grammar/vocab/etc.)
- *   2. Load agent prompt
- *   3. Load user memory from Supabase
- *   4. Build system prompt + history
- *   5. Call LLM
- *   6. Save messages
- *   7. Return response
+ * Handles the correction-aware conversation loop:
+ * 1. Load agent prompt + user history
+ * 2. Call LLM with structured output format
+ * 3. Parse [RESPONSE]/[CORRECTION]/[VOCAB]
+ * 4. Save to DB + track vocabulary
  */
 
-import { callLLM, type LLMMessage } from "./llm.ts";
-import type { Language } from "./i18n.ts";
-import { checkSessionLimit } from "./safety.ts";
-import {
-  saveMessage,
-  getHistory,
-  getFactsByCategory,
-} from "./memory.ts";
-import {
-  classifyMessage,
-  getAgentPrompt,
-  getAgent,
-} from "../agents/registry.ts";
-import type { ModelTier } from "../agents/types.ts";
+import { callLLM, callLLMStream, type LLMMessage } from "./llm.ts";
+import { parseLLMResponse } from "./correction-parser.ts";
+import { getRecentMessages, saveMessage, trackVocabulary, trackProgress } from "./memory.ts";
+import { getAgent } from "../agents/registry.ts";
+import type { ParsedResponse } from "../agents/types.ts";
+import * as fs from "fs";
+import * as path from "path";
 
-// ============================================================
-// Types
-// ============================================================
+const PROMPTS_DIR = path.join(import.meta.dir, "../../prompts");
 
-export interface UserSession {
-  language: Language;
-  messageCount: number;
-  history: LLMMessage[];
-  currentAgent: string;
-  specialistOverride?: string;
-}
-
-export interface ConversationInput {
-  userId: string;
-  text: string;
-  session: UserSession;
-}
-
-export interface ConversationResult {
-  reply: string;
-  specialistDomain: string;
-  tokensUsed: number;
-  sessionLimitWarning?: string;
-}
-
-// ============================================================
-// Main Handler
-// ============================================================
-
-export async function handleConversation(
-  input: ConversationInput
-): Promise<ConversationResult> {
-  const { userId, text, session } = input;
-
-  // Session limit check
-  const limit = checkSessionLimit(session.messageCount);
-  if (\!limit.allowed) {
-    return {
-      reply: `⏰ ${limit.warning}`,
-      specialistDomain: "conversation",
-      tokensUsed: 0,
-      sessionLimitWarning: limit.warning,
-    };
-  }
-
-  // Add user message to history
-  session.history.push({ role: "user", content: text });
-
-  // Keep history manageable (last 20 messages)
-  if (session.history.length > 20) {
-    const systemMsgs = session.history.filter((m) => m.role === "system");
-    const convMsgs = session.history
-      .filter((m) => m.role \!== "system")
-      .slice(-16);
-    session.history = [...systemMsgs, ...convMsgs];
-  }
-
-  // Detect specialist domain
-  const specialistDomain =
-    session.specialistOverride || classifyMessage(text);
-
-  // Load agent prompt
-  const agentPrompt = await getAgentPrompt(specialistDomain);
-  const agent = getAgent(specialistDomain);
-  const modelTier: ModelTier = agent.model;
-
-  if (specialistDomain \!== "conversation") {
-    console.log(
-      `[Router] ${agent.emoji} ${specialistDomain}${session.specialistOverride ? " (manual)" : ""}`
-    );
-  }
-
-  // Load memory context from Supabase
-  let memoryContext = "";
+function loadPrompt(filename: string): string {
+  const filepath = path.join(PROMPTS_DIR, filename);
   try {
-    const [levelFacts, history] = await Promise.all([
-      getFactsByCategory(userId, "level_assessment", 3),
-      getHistory(userId, 6),
-    ]);
-
-    const sections: string[] = [];
-
-    if (levelFacts.length > 0) {
-      sections.push(
-        `### User Level
-${levelFacts.map((f) => `- ${f.content}`).join("
-")}`
-      );
-    }
-
-    if (history.length > 0) {
-      sections.push(
-        `### Recent History
-${history.map((h) => `${h.role}: ${h.content.slice(0, 150)}`).join("
-")}`
-      );
-    }
-
-    if (sections.length > 0) {
-      memoryContext = `
-
-## USER CONTEXT
-
-${sections.join("
-
-")}`;
-    }
-  } catch (e) {
-    console.error(`[Memory] Failed:`, e);
+    return fs.readFileSync(filepath, "utf-8");
+  } catch {
+    console.error(`[Conversation] Prompt file not found: ${filepath}`);
+    return "You are a helpful language tutor.";
   }
+}
 
-  // Build messages for LLM
-  const systemContent =
-    "🌐 LANGUAGE: UI and corrections in Polish. Conversation in the target language (English or Portuguese depending on the agent).
+/**
+ * Build the message array for the LLM call.
+ */
+async function buildMessages(
+  userId: string,
+  agentId: string,
+  userMessage: string
+): Promise<LLMMessage[]> {
+  const agent = getAgent(agentId);
+  if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-" +
-    agentPrompt +
-    memoryContext;
+  const systemPrompt = loadPrompt(agent.promptFile);
+
+  // Load recent history
+  const history = await getRecentMessages(userId, agentId, 16);
 
   const messages: LLMMessage[] = [
-    { role: "system", content: systemContent },
-    ...session.history,
+    { role: "system", content: systemPrompt },
   ];
 
-  // Call LLM
-  const response = await callLLM(messages, modelTier);
-
-  // Add to history
-  session.history.push({ role: "assistant", content: response.content });
-
-  // Save to Supabase
-  try {
-    await saveMessage(userId, "user", text);
-    await saveMessage(userId, "assistant", response.content, specialistDomain);
-  } catch (e) {
-    console.error(`[Conversation] DB save failed:`, e);
+  // Add conversation history
+  for (const msg of history) {
+    messages.push({
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+    });
   }
 
-  const reply = cleanResponse(response.content);
+  // Add current user message
+  messages.push({ role: "user", content: userMessage });
 
-  return {
-    reply,
-    specialistDomain,
-    tokensUsed: response.tokensUsed.total,
-    sessionLimitWarning: limit.warning || undefined,
-  };
+  return messages;
 }
 
-// ============================================================
-// Response Cleaning
-// ============================================================
+/**
+ * Send a message and get a parsed response (non-streaming).
+ */
+export async function chat(
+  userId: string,
+  agentId: string,
+  userMessage: string
+): Promise<ParsedResponse> {
+  const agent = getAgent(agentId);
+  if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-function cleanResponse(text: string): string {
-  let cleaned = text.trim();
-  cleaned = cleaned.replace(/
-{3,}/g, "
+  const messages = await buildMessages(userId, agentId, userMessage);
+  const response = await callLLM(messages, agent.model);
 
-").trim();
-  return cleaned;
+  // Parse the structured response
+  const parsed = parseLLMResponse(response.content);
+
+  // Save messages to DB
+  await saveMessage({
+    user_id: userId,
+    agent_id: agentId,
+    role: "user",
+    content: userMessage,
+  });
+
+  await saveMessage({
+    user_id: userId,
+    agent_id: agentId,
+    role: "assistant",
+    content: response.content,
+    correction: parsed.corrections.length > 0 ? parsed.corrections : null,
+    vocab: parsed.vocabulary.length > 0 ? parsed.vocabulary : null,
+  });
+
+  // Track vocabulary
+  for (const v of parsed.vocabulary) {
+    await trackVocabulary(userId, v.word, v.alternatives);
+  }
+
+  // Track progress
+  await trackProgress(userId, parsed.corrections.length, parsed.vocabulary.length);
+
+  return parsed;
+}
+
+/**
+ * Stream a chat response via async generator.
+ * Yields raw text chunks. Client handles parsing once stream ends.
+ */
+export async function* chatStream(
+  userId: string,
+  agentId: string,
+  userMessage: string
+): AsyncGenerator<string> {
+  const agent = getAgent(agentId);
+  if (!agent) throw new Error(`Agent not found: ${agentId}`);
+
+  const messages = await buildMessages(userId, agentId, userMessage);
+
+  // Save user message immediately
+  await saveMessage({
+    user_id: userId,
+    agent_id: agentId,
+    role: "user",
+    content: userMessage,
+  });
+
+  let fullResponse = "";
+
+  for await (const chunk of callLLMStream(messages, agent.model)) {
+    fullResponse += chunk;
+    yield chunk;
+  }
+
+  // Parse the complete response
+  const parsed = parseLLMResponse(fullResponse);
+
+  // Save assistant message
+  await saveMessage({
+    user_id: userId,
+    agent_id: agentId,
+    role: "assistant",
+    content: fullResponse,
+    correction: parsed.corrections.length > 0 ? parsed.corrections : null,
+    vocab: parsed.vocabulary.length > 0 ? parsed.vocabulary : null,
+  });
+
+  // Track vocabulary
+  for (const v of parsed.vocabulary) {
+    await trackVocabulary(userId, v.word, v.alternatives);
+  }
+
+  // Track progress
+  await trackProgress(userId, parsed.corrections.length, parsed.vocabulary.length);
 }
