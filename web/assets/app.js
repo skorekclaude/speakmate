@@ -521,7 +521,7 @@ function toggleRecording() {
     recognition.stop();
   } else {
     // Update language for current agent
-    recognition.lang = currentAgent === 'brasileiro' ? 'pl' : 'en-US';
+    recognition.lang = currentAgent === 'brasileiro' ? 'pt-BR' : 'en-US';
     recognition.start();
     isRecording = true;
     document.getElementById('micBtn').classList.add('recording');
