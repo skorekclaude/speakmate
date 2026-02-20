@@ -4,123 +4,171 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpeakMate — AI Language Tutor</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0a0a0f;
-      color: #e0e0e0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .hero {
-      text-align: center;
-      padding: 2rem;
-      max-width: 600px;
-    }
-    .hero h1 {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero .subtitle {
-      font-size: 1.2rem;
-      color: #888;
-      margin-bottom: 2rem;
-    }
-    .agents-preview {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      justify-content: center;
-      margin-bottom: 2rem;
-    }
-    .agent-card {
-      background: #1a1a2e;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 1rem;
-      width: 150px;
-      text-align: center;
-      transition: transform 0.2s;
-    }
-    .agent-card:hover { transform: translateY(-4px); border-color: #667eea; }
-    .agent-card .emoji { font-size: 2rem; margin-bottom: 0.5rem; }
-    .agent-card .name { font-weight: 600; margin-bottom: 0.25rem; }
-    .agent-card .desc { font-size: 0.75rem; color: #888; }
-    .login-form {
-      background: #1a1a2e;
-      border: 1px solid #333;
-      border-radius: 16px;
-      padding: 2rem;
-      width: 100%;
-      max-width: 400px;
-    }
-    .login-form input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border: 1px solid #444;
-      border-radius: 8px;
-      background: #0d0d1a;
-      color: #fff;
-      font-size: 1rem;
-      margin-bottom: 1rem;
-      outline: none;
-    }
-    .login-form input:focus { border-color: #667eea; }
-    .login-form button {
-      width: 100%;
-      padding: 0.75rem;
-      border: none;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-    .login-form button:hover { opacity: 0.9; }
-    .error { color: #ff6b6b; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
-  </style>
+  <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body>
-  <div class="hero">
+<body class="landing">
+
+  <!-- Hero -->
+  <section class="landing-hero">
+    <div class="mic-hero">🗣️</div>
     <h1>SpeakMate</h1>
-    <p class="subtitle">AI Language Tutor — Learn English & Portuguese with native speakers</p>
+    <p class="subtitle">AI Language Tutor</p>
+    <p class="tagline">Learn English & Portuguese through real conversations with AI tutors. Voice-first, corrections after every message, vocabulary tracking.</p>
+  </section>
 
-    <div class="agents-preview">
-      <div class="agent-card"><div class="emoji">🎓</div><div class="name">Alex</div><div class="desc">General English</div></div>
-      <div class="agent-card"><div class="emoji">🔥</div><div class="name">Zara</div><div class="desc">Gen-Z Slang</div></div>
-      <div class="agent-card"><div class="emoji">🧪</div><div class="name">Dr. Chen</div><div class="desc">Science</div></div>
-      <div class="agent-card"><div class="emoji">💕</div><div class="name">Sam</div><div class="desc">Dating</div></div>
-      <div class="agent-card"><div class="emoji">🎨</div><div class="name">Luna</div><div class="desc">Art & Philosophy</div></div>
-      <div class="agent-card"><div class="emoji">🇧🇷</div><div class="name">Rafael</div><div class="desc">Portuguese</div></div>
+  <!-- Features -->
+  <section class="features">
+    <div class="feature-card fade-in-up delay-1">
+      <div class="feat-icon">🎤</div>
+      <div class="feat-title">Voice-First</div>
+      <div class="feat-desc">Speak naturally and get instant feedback on pronunciation and grammar.</div>
     </div>
+    <div class="feature-card fade-in-up delay-2">
+      <div class="feat-icon">✏️</div>
+      <div class="feat-title">Real-Time Corrections</div>
+      <div class="feat-desc">Every message gets grammar corrections with clear explanations.</div>
+    </div>
+    <div class="feature-card fade-in-up delay-3">
+      <div class="feat-icon">📚</div>
+      <div class="feat-title">Vocabulary Tracker</div>
+      <div class="feat-desc">New words are saved automatically. Review, practice with flashcards, track mastery.</div>
+    </div>
+    <div class="feature-card fade-in-up delay-4">
+      <div class="feat-icon">🤖</div>
+      <div class="feat-title">6 AI Tutors</div>
+      <div class="feat-desc">From casual English to scientific terminology to Brazilian Portuguese.</div>
+    </div>
+  </section>
 
-    <div class="login-form">
-      <input type="email" id="emailInput" placeholder="Enter your email to start..." autocomplete="email" />
-      <button id="loginBtn" onclick="doLogin()">Start Learning →</button>
+  <!-- Meet Your Tutors -->
+  <section class="tutors-section fade-in-up">
+    <h2>Meet Your Tutors</h2>
+    <p class="section-subtitle">Each tutor has a unique personality and teaching style</p>
+    <div class="tutors-grid">
+      <a class="tutor-card" onclick="pickTutor('general')" href="javascript:void(0)">
+        <div class="tutor-emoji">🎓</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Alex</div>
+          <div class="tutor-role">General English</div>
+          <div class="tutor-desc">Your everyday English buddy. Natural conversations with grammar corrections after every message.</div>
+          <span class="tutor-lang">English</span>
+        </div>
+      </a>
+      <a class="tutor-card" onclick="pickTutor('youth')" href="javascript:void(0)">
+        <div class="tutor-emoji">🔥</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Zara</div>
+          <div class="tutor-role">Gen-Z Slang</div>
+          <div class="tutor-desc">Gen-Z slang expert. Learn modern expressions, internet culture, and casual English.</div>
+          <span class="tutor-lang">English</span>
+        </div>
+      </a>
+      <a class="tutor-card" onclick="pickTutor('chemist')" href="javascript:void(0)">
+        <div class="tutor-emoji">🧪</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Dr. Chen</div>
+          <div class="tutor-role">Science English</div>
+          <div class="tutor-desc">Chemistry professor. Master scientific terminology and academic English.</div>
+          <span class="tutor-lang">English</span>
+        </div>
+      </a>
+      <a class="tutor-card" onclick="pickTutor('dating')" href="javascript:void(0)">
+        <div class="tutor-emoji">💕</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Sam</div>
+          <div class="tutor-role">Dating Coach</div>
+          <div class="tutor-desc">British dating coach. Romantic vocabulary, flirting, and social English.</div>
+          <span class="tutor-lang">English</span>
+        </div>
+      </a>
+      <a class="tutor-card" onclick="pickTutor('artist')" href="javascript:void(0)">
+        <div class="tutor-emoji">🎨</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Luna</div>
+          <div class="tutor-role">Art & Philosophy</div>
+          <div class="tutor-desc">Art & philosophy guru. Deep conversations about culture, creativity, and life.</div>
+          <span class="tutor-lang">English</span>
+        </div>
+      </a>
+      <a class="tutor-card" onclick="pickTutor('brasileiro')" href="javascript:void(0)">
+        <div class="tutor-emoji">🇧🇷</div>
+        <div class="tutor-info">
+          <div class="tutor-name">Rafael</div>
+          <div class="tutor-role">Portuguese Teacher</div>
+          <div class="tutor-desc">Your Brazilian Portuguese teacher. Learn PT-BR from zero with a Rio spirit!</div>
+          <span class="tutor-lang">Portugu&ecirc;s</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-section fade-in-up">
+    <h2>How It Works</h2>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="step-num">1</div>
+        <div class="step-title">Pick a Tutor</div>
+        <div class="step-desc">Choose the tutor that matches what you want to learn.</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">2</div>
+        <div class="step-title">Start Talking</div>
+        <div class="step-desc">Type or use voice input. Talk about anything you like.</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">3</div>
+        <div class="step-title">Learn & Improve</div>
+        <div class="step-desc">Get corrections, learn new words, and track your progress.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Login -->
+  <section class="login-section fade-in-up" id="loginSection">
+    <div class="login-box">
+      <h3>Start Learning Now</h3>
+      <p class="login-hint">Enter your email to begin. No password needed.</p>
+      <input type="email" id="emailInput" placeholder="your@email.com" autocomplete="email" />
+      <button class="btn-primary" id="loginBtn" onclick="doLogin()">Start Learning →</button>
       <p class="error" id="loginError"></p>
     </div>
-  </div>
+  </section>
 
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <p>SpeakMate — AI Language Tutor &middot; Built with <a href="https://github.com/skore">love</a></p>
+  </footer>
+
+  <script src="/assets/shared.js"></script>
   <script>
-    // Check if already logged in
-    const token = localStorage.getItem('sm_token');
-    if (token) window.location.href = '/app';
+    // Redirect if already logged in
+    if (getToken()) {
+      window.location.href = '/app';
+    }
 
+    // Pick tutor and go to chat
+    function pickTutor(agentId) {
+      localStorage.setItem('sm_agent', agentId);
+      if (getToken()) {
+        window.location.href = '/app';
+      } else {
+        document.getElementById('loginSection').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('emailInput').focus();
+      }
+    }
+
+    // Login
     async function doLogin() {
       const email = document.getElementById('emailInput').value.trim();
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginBtn');
 
-      if (!email) { errorEl.textContent = 'Please enter your email'; errorEl.style.display = 'block'; return; }
+      if (!email) {
+        errorEl.textContent = 'Please enter your email';
+        errorEl.style.display = 'block';
+        return;
+      }
 
       btn.textContent = 'Logging in...';
       btn.disabled = true;
@@ -135,8 +183,8 @@
 
         if (!res.ok) throw new Error(data.error || 'Login failed');
 
-        localStorage.setItem('sm_token', data.token);
-        localStorage.setItem('sm_email', email);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(EMAIL_KEY, email);
         window.location.href = '/app';
       } catch (err) {
         errorEl.textContent = err.message;
@@ -146,9 +194,13 @@
       }
     }
 
+    // Enter key login
     document.getElementById('emailInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') doLogin();
     });
+
+    // Scroll animations
+    initScrollAnimations();
   </script>
 </body>
 </html>

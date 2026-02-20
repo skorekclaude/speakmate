@@ -12,6 +12,7 @@ import { callLLM, callLLMStream, type LLMMessage } from "./llm.ts";
 import { parseLLMResponse } from "./correction-parser.ts";
 import { getRecentMessages, saveMessage, trackVocabulary, trackProgress } from "./memory.ts";
 import { getAgent } from "../agents/registry.ts";
+import { getNews, getNewsContext } from "./news-fetcher.ts";
 import type { ParsedResponse } from "../agents/types.ts";
 import * as fs from "fs";
 import * as path from "path";
@@ -39,7 +40,11 @@ async function buildMessages(
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-  const systemPrompt = loadPrompt(agent.promptFile);
+  // Load base prompt and append Polish news context (filtered by agent specialty)
+  const basePrompt = loadPrompt(agent.promptFile);
+  const newsItems = await getNews();
+  const newsContext = getNewsContext(newsItems, agentId);
+  const systemPrompt = basePrompt + newsContext;
 
   // Load recent history
   const history = await getRecentMessages(userId, agentId, 16);

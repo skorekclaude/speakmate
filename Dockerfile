@@ -1,4 +1,4 @@
-# ALLMA — Production Dockerfile (Railway.app)
+# SpeakMate — Production Dockerfile (Railway.app)
 FROM oven/bun:1 AS base
 WORKDIR /app
 
@@ -10,17 +10,16 @@ RUN bun install --frozen-lockfile --production
 COPY src/ src/
 COPY web/ web/
 COPY prompts/ prompts/
-COPY data/ data/
 
-# Create logs directory
-RUN mkdir -p logs
+# Create dirs
+RUN mkdir -p logs data
 
-# Expose port (Railway sets PORT env var)
-EXPOSE 3456
+# Railway sets PORT env var — default 3478
+EXPOSE ${PORT:-3478}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD curl -f http://localhost:3456/health || exit 1
+  CMD bun -e "fetch('http://localhost:'+(process.env.PORT||3478)+'/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
 
 # Start
 CMD ["bun", "run", "src/index.ts"]

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakMate — Progress</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    html, body { overflow: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav Bar -->
+  <nav class="nav-bar" id="navBar"></nav>
+
+  <!-- Page Content -->
+  <div class="page-container" id="pageContent">
+    <h1>📊 Your Progress</h1>
+
+    <!-- Streak Card -->
+    <div class="streak-card" id="streakCard">
+      <span class="streak-fire">🔥</span>
+      <span class="streak-number" id="streakNum">0</span>
+      <div class="streak-label">day streak</div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number" id="totalMessages">0</div>
+        <div class="stat-label">Messages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalCorrections">0</div>
+        <div class="stat-label">Corrections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalWords">0</div>
+        <div class="stat-label">Words Learned</div>
+      </div>
+    </div>
+
+    <!-- Bar Chart — 30 days -->
+    <div class="chart-container">
+      <h3>Activity (Last 30 Days)</h3>
+      <div class="bar-chart" id="barChart"></div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--primary)"></div>
+          Messages
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--warning)"></div>
+          Corrections
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--success)"></div>
+          New Words
+        </div>
+      </div>
+    </div>
+
+    <!-- CEFR Level -->
+    <div class="level-card">
+      <h3>Estimated Level</h3>
+      <div class="level-badge" id="levelBadge">A1</div>
+      <p id="levelDesc">Keep chatting to improve your level estimate!</p>
+    </div>
+  </div>
+
+  <script src="/assets/shared.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+    renderNav('progress');
+
+    // CEFR estimation based on vocabulary size
+    function estimateCEFR(wordCount) {
+      if (wordCount >= 1500) return { level: 'C2', desc: 'Mastery — You have an extensive vocabulary. Impressive!' };
+      if (wordCount >= 800)  return { level: 'C1', desc: 'Advanced — Strong command of the language.' };
+      if (wordCount >= 400)  return { level: 'B2', desc: 'Upper Intermediate — Fluent in most situations.' };
+      if (wordCount >= 150)  return { level: 'B1', desc: 'Intermediate — Can handle everyday conversations.' };
+      if (wordCount >= 50)   return { level: 'A2', desc: 'Elementary — Building your foundation.' };
+      return { level: 'A1', desc: 'Beginner — Keep going, every word counts!' };
+    }
+
+    // Calculate streak from daily data
+    function calcStreak(days) {
+      let streak = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Sort days descending by date
+      const sorted = [...days].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      for (let i = 0; i < sorted.length; i++) {
+        const dayDate = new Date(sorted[i].date);
+        dayDate.setHours(0, 0, 0, 0);
+
+        const expected = new Date(today);
+        expected.setDate(expected.getDate() - i);
+
+        if (dayDate.getTime() === expected.getTime() && (sorted[i].messages || 0) > 0) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    // Render bar chart
+    function renderChart(days) {
+      const chart = document.getElementById('barChart');
+      if (!days || days.length === 0) {
+        chart.innerHTML = '<div style="color: var(--text-dim); text-align: center; width: 100%; padding: 2rem;">No activity yet. Start chatting!</div>';
+        return;
+      }
+
+      // Generate last 30 days map
+      const dayMap = {};
+      days.forEach(d => { dayMap[d.date] = d; });
+
+      const last30 = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        last30.push({
+          date: key,
+          messages: dayMap[key]?.messages || 0,
+          corrections: dayMap[key]?.corrections || 0,
+          words: dayMap[key]?.new_words || 0
+        });
+      }
+
+      // Find max for scaling
+      const maxVal = Math.max(1, ...last30.map(d => Math.max(d.messages, d.corrections, d.words)));
+      const maxHeight = 150; // px
+
+      chart.innerHTML = last30.map(d => {
+        const mH = Math.max(2, (d.messages / maxVal) * maxHeight);
+        const cH = Math.max(2, (d.corrections / maxVal) * maxHeight);
+        const wH = Math.max(2, (d.words / maxVal) * maxHeight);
+        const dateLabel = formatDateShort(d.date);
+
+        return `
+          <div class="bar-group">
+            <div class="bar-tooltip">
+              ${d.date}<br>
+              💬 ${d.messages} &nbsp; ✏️ ${d.corrections} &nbsp; 📚 ${d.words}
+            </div>
+            <div class="bar messages" style="height: ${mH}px"></div>
+            <div class="bar corrections" style="height: ${cH}px"></div>
+            <div class="bar words" style="height: ${wH}px"></div>
+            <div class="bar-date">${dateLabel}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Load data
+    async function loadProgress() {
+      try {
+        // Fetch progress and vocabulary in parallel
+        const [progressRes, vocabRes] = await Promise.all([
+          apiFetch('/api/progress'),
+          apiFetch('/api/vocabulary')
+        ]);
+
+        let days = [];
+        let vocab = [];
+
+        if (progressRes && progressRes.ok) {
+          const progressData = await progressRes.json();
+          days = progressData.progress || progressData.days || [];
+        }
+
+        if (vocabRes && vocabRes.ok) {
+          const vocabData = await vocabRes.json();
+          vocab = vocabData.vocabulary || vocabData.words || [];
+        }
+
+        // Normalize field names (DB uses snake_case)
+        days = days.map(d => ({
+          date: d.date,
+          messages: d.messages_sent || d.messages || 0,
+          corrections: d.corrections_received || d.corrections || 0,
+          new_words: d.new_words || d.words || 0
+        }));
+
+        // Calculate totals
+        let totalMsg = 0, totalCorr = 0;
+        days.forEach(d => {
+          totalMsg += d.messages || 0;
+          totalCorr += d.corrections || 0;
+        });
+
+        const totalWordsCount = Array.isArray(vocab) ? vocab.length : 0;
+
+        // Update stats
+        document.getElementById('totalMessages').textContent = totalMsg;
+        document.getElementById('totalCorrections').textContent = totalCorr;
+        document.getElementById('totalWords').textContent = totalWordsCount;
+
+        // Streak
+        const streak = calcStreak(days);
+        document.getElementById('streakNum').textContent = streak;
+
+        // Chart
+        renderChart(days);
+
+        // CEFR level
+        const cefr = estimateCEFR(totalWordsCount);
+        document.getElementById('levelBadge').textContent = cefr.level;
+        document.getElementById('levelDesc').textContent = cefr.desc;
+
+      } catch (err) {
+        console.error('Failed to load progress:', err);
+        document.getElementById('pageContent').innerHTML += `
+          <div style="text-align: center; color: var(--error); padding: 2rem;">
+            Failed to load progress data. Please try again later.
+          </div>
+        `;
+      }
+    }
+
+    loadProgress();
+  </script>
+</body>
+</html>

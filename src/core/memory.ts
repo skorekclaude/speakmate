@@ -169,6 +169,15 @@ export async function trackVocabulary(
   }
 }
 
+export async function updateVocabMastered(vocabId: string, mastered: boolean): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("sm_vocabulary")
+    .update({ mastered })
+    .eq("id", vocabId);
+  if (error) console.error(`[Memory] Failed to update vocab: ${error.message}`);
+}
+
 export async function getVocabulary(userId: string): Promise<SMVocab[]> {
   const sb = getSupabase();
   const { data } = await sb

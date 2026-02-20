@@ -13,8 +13,9 @@
 import { chatStream } from "../core/conversation.ts";
 import { parseLLMResponse } from "../core/correction-parser.ts";
 import { generateSpeech } from "../core/tts.ts";
-import { getOrCreateUser, getVocabulary, getProgress, clearMessages } from "../core/memory.ts";
+import { getOrCreateUser, getVocabulary, getProgress, clearMessages, getRecentMessages, updateVocabMastered } from "../core/memory.ts";
 import { getAllAgents, getAgent } from "../agents/registry.ts";
+import { getNews, refreshNews } from "../core/news-fetcher.ts";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -35,7 +36,7 @@ function jsonResponse(data: any, status = 200): Response {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE",
+      "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS, DELETE",
     },
   });
 }
@@ -192,6 +193,28 @@ async function handleClearChat(req: Request): Promise<Response> {
   return jsonResponse({ ok: true });
 }
 
+async function handleChatHistory(req: Request, url: URL): Promise<Response> {
+  const session = getSessionFromRequest(req);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+
+  const agentId = url.searchParams.get("agentId") || "general";
+  const limit = parseInt(url.searchParams.get("limit") || "30");
+  const messages = await getRecentMessages(session.userId, agentId, limit);
+  return jsonResponse({ messages });
+}
+
+async function handleVocabUpdate(req: Request, url: URL): Promise<Response> {
+  const session = getSessionFromRequest(req);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+
+  const vocabId = url.pathname.split("/").pop();
+  if (!vocabId) return jsonResponse({ error: "Vocabulary ID required" }, 400);
+
+  const { mastered } = await req.json();
+  await updateVocabMastered(vocabId, mastered);
+  return jsonResponse({ ok: true });
+}
+
 function handleAgents(): Response {
   const agents = getAllAgents().map((a) => ({
     id: a.id,
@@ -212,6 +235,10 @@ function serveStatic(pathname: string): Response {
     ? path.join(WEB_DIR, "index.html")
     : pathname === "/app"
     ? path.join(WEB_DIR, "app.html")
+    : pathname === "/progress"
+    ? path.join(WEB_DIR, "progress.html")
+    : pathname === "/vocabulary"
+    ? path.join(WEB_DIR, "vocabulary.html")
     : path.join(WEB_DIR, pathname);
 
   try {
@@ -247,9 +274,14 @@ export function startServer() {
           headers: {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE",
+            "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS, DELETE",
           },
         });
+      }
+
+      // Health check (Railway / Docker)
+      if (url.pathname === "/health") {
+        return jsonResponse({ status: "ok", uptime: process.uptime() });
       }
 
       // API Routes
@@ -274,10 +306,22 @@ export function startServer() {
       if (url.pathname === "/api/chat/clear" && req.method === "POST") {
         return handleClearChat(req);
       }
+      if (url.pathname === "/api/chat/history" && req.method === "GET") {
+        return handleChatHistory(req, url);
+      }
+      if (url.pathname.startsWith("/api/vocabulary/") && req.method === "PATCH") {
+        return handleVocabUpdate(req, url);
+      }
       if (url.pathname === "/api/auth/me" && req.method === "GET") {
         const session = getSessionFromRequest(req);
         if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
         return jsonResponse({ email: session.email, userId: session.userId });
+      }
+
+      // News headlines (public endpoint — no auth needed)
+      if (url.pathname === "/api/news" && req.method === "GET") {
+        const items = await getNews();
+        return jsonResponse({ news: items, count: items.length });
       }
 
       // Static files
@@ -288,6 +332,18 @@ export function startServer() {
   console.log(`\n🗣️  SpeakMate running at http://localhost:${PORT}`);
   console.log(`   App: http://localhost:${PORT}/app`);
   console.log(`   API: http://localhost:${PORT}/api/agents\n`);
+
+  // Initial news fetch (non-blocking)
+  refreshNews()
+    .then((n) => console.log(`📰 News: ${n} headlines loaded`))
+    .catch((err) => console.warn(`📰 News: initial fetch failed — ${err.message}`));
+
+  // Refresh news every 24h
+  setInterval(() => {
+    refreshNews()
+      .then((n) => console.log(`📰 News refresh: ${n} headlines`))
+      .catch((err) => console.warn(`📰 News refresh failed: ${err.message}`));
+  }, 24 * 60 * 60 * 1000);
 
   return server;
 }

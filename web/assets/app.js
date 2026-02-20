@@ -8,14 +8,16 @@
  * - Vocabulary chips
  * - Web Speech API voice input
  * - TTS playback
+ * - Chat history loading
+ * - Clear chat
  */
 
 // ============================================================
 // State
 // ============================================================
 
-let token = localStorage.getItem('sm_token');
-let currentAgent = 'general';
+let token = getToken();
+let currentAgent = localStorage.getItem('sm_agent') || 'general';
 let agents = [];
 let isStreaming = false;
 let recognition = null;
@@ -25,8 +27,8 @@ let isRecording = false;
 // Auth Check
 // ============================================================
 
-if (!token) {
-  window.location.href = '/';
+if (!requireAuth()) {
+  throw new Error('Not authenticated');
 }
 
 // ============================================================
@@ -34,10 +36,17 @@ if (!token) {
 // ============================================================
 
 async function init() {
+  renderNav('chat');
   await loadAgents();
   setupVoiceInput();
   setupTextInput();
   document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+  // Load chat history for selected agent
+  await loadChatHistory();
+
+  // Clear sm_agent preference after using it
+  localStorage.removeItem('sm_agent');
 }
 
 // ============================================================
@@ -50,7 +59,7 @@ async function loadAgents() {
     const data = await res.json();
     agents = data.agents;
     renderAgentBar();
-    selectAgent(agents[0].id);
+    selectAgent(currentAgent, false);
   } catch (err) {
     console.error('Failed to load agents:', err);
   }
@@ -59,16 +68,26 @@ async function loadAgents() {
 function renderAgentBar() {
   const bar = document.getElementById('agentBar');
   bar.innerHTML = agents.map(a =>
-    `<button class="agent-chip" data-id="${a.id}" onclick="selectAgent('${a.id}')">
+    `<button class="agent-chip" data-id="${a.id}" onclick="selectAgent('${a.id}', true)">
       <span class="chip-emoji">${a.emoji}</span>
       <span>${a.name}</span>
     </button>`
-  ).join('');
+  ).join('') +
+  `<button class="agent-chip" style="margin-left: auto; border-color: var(--error); color: var(--error);" onclick="clearChat()" title="Clear chat history">
+    🗑️ <span>Clear</span>
+  </button>`;
 }
 
-function selectAgent(id) {
-  currentAgent = id;
+function selectAgent(id, reload = false) {
+  // Validate agent exists
   const agent = agents.find(a => a.id === id);
+  if (!agent) {
+    // Fallback to first agent
+    id = agents[0]?.id || 'general';
+  }
+
+  const prevAgent = currentAgent;
+  currentAgent = id;
 
   // Update chips
   document.querySelectorAll('.agent-chip').forEach(chip => {
@@ -76,24 +95,99 @@ function selectAgent(id) {
   });
 
   // Update welcome
+  const agentObj = agents.find(a => a.id === id);
   const welcome = document.getElementById('welcomeMsg');
-  if (welcome) {
-    welcome.querySelector('.welcome-emoji').textContent = agent.emoji;
-    welcome.querySelector('h2').textContent = `Hey! I'm ${agent.name}`;
-    welcome.querySelector('p').textContent = agent.description;
+  if (welcome && agentObj) {
+    welcome.querySelector('.welcome-emoji').textContent = agentObj.emoji;
+    welcome.querySelector('h2').textContent = `Hey! I'm ${agentObj.name}`;
+    welcome.querySelector('p').textContent = agentObj.description;
   }
 
   // Update placeholder
   const input = document.getElementById('messageInput');
-  if (agent.targetLanguage === 'pt-BR') {
+  if (agentObj && agentObj.targetLanguage === 'pt-BR') {
     input.placeholder = 'Try some Portuguese...';
   } else {
     input.placeholder = 'Type in English...';
+  }
+
+  // Load history if switching agents
+  if (reload && prevAgent !== id) {
+    loadChatHistory();
   }
 }
 
 // Make globally accessible for onclick
 window.selectAgent = selectAgent;
+
+// ============================================================
+// Chat History
+// ============================================================
+
+async function loadChatHistory() {
+  const chatArea = document.getElementById('chatArea');
+
+  // Clear current messages but keep welcome
+  const welcome = document.getElementById('welcomeMsg');
+
+  // Remove all messages (keep welcome if exists)
+  chatArea.querySelectorAll('.message').forEach(el => el.remove());
+
+  try {
+    const res = await apiFetch(`/api/chat/history?agentId=${currentAgent}&limit=30`);
+    if (!res || !res.ok) return;
+
+    const data = await res.json();
+    const messages = data.messages || [];
+
+    if (messages.length > 0) {
+      // Remove welcome if we have history
+      if (welcome) welcome.remove();
+
+      messages.forEach(msg => {
+        addMessage(msg.role, msg.content);
+      });
+      scrollToBottom();
+    }
+  } catch (err) {
+    console.error('Failed to load chat history:', err);
+  }
+}
+
+// ============================================================
+// Clear Chat
+// ============================================================
+
+async function clearChat() {
+  if (!confirm('Clear all messages with this tutor?')) return;
+
+  try {
+    await apiFetch('/api/chat/clear', {
+      method: 'POST',
+      body: { agentId: currentAgent }
+    });
+
+    // Reset chat area
+    const chatArea = document.getElementById('chatArea');
+    chatArea.innerHTML = '';
+
+    // Re-add welcome
+    const agent = agents.find(a => a.id === currentAgent);
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'welcome-msg';
+    welcomeDiv.id = 'welcomeMsg';
+    welcomeDiv.innerHTML = `
+      <div class="welcome-emoji">${agent ? agent.emoji : '🎓'}</div>
+      <h2>Hey! I'm ${agent ? agent.name : 'your tutor'}</h2>
+      <p>${agent ? agent.description : 'Say something and I\'ll help you improve!'}</p>
+    `;
+    chatArea.appendChild(welcomeDiv);
+  } catch (err) {
+    console.error('Failed to clear chat:', err);
+  }
+}
+
+window.clearChat = clearChat;
 
 // ============================================================
 // Chat
@@ -129,8 +223,7 @@ async function sendMessage() {
     });
 
     if (res.status === 401) {
-      localStorage.removeItem('sm_token');
-      window.location.href = '/';
+      logout();
       return;
     }
 
@@ -252,9 +345,8 @@ function addParsedMessage(parsed) {
   let html = `<div class="agent-label">${agent ? agent.emoji + ' ' + agent.name : ''}</div>`;
   html += `<div class="bubble">${escapeHtml(parsed.response)}</div>`;
 
-  // Play TTS button
-  const safeText = parsed.response.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ');
-  html += `<button class="play-btn" onclick="playTTS(this, '${safeText}')">🔊 Play</button>`;
+  // Play TTS button — use data attribute to avoid quote escaping issues
+  html += `<button class="play-btn" data-tts-text="${escapeAttr(parsed.response)}">🔊 Play</button>`;
 
   // Correction cards
   if (parsed.corrections && parsed.corrections.length > 0) {
@@ -300,7 +392,10 @@ function showThinking() {
 
 let currentAudio = null;
 
-async function playTTS(btn, text) {
+async function playTTS(btn) {
+  const text = btn.getAttribute('data-tts-text');
+  if (!text) return;
+
   // Stop if already playing
   if (currentAudio) {
     currentAudio.pause();
@@ -309,6 +404,8 @@ async function playTTS(btn, text) {
       b.classList.remove('playing');
       b.textContent = '🔊 Play';
     });
+    // If clicking the same button that was playing, just stop
+    if (btn.classList.contains('playing')) return;
   }
 
   btn.textContent = '⏳ Loading...';
@@ -323,28 +420,48 @@ async function playTTS(btn, text) {
       body: JSON.stringify({ text, agentId: currentAgent }),
     });
 
-    if (!res.ok) throw new Error('TTS failed');
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('TTS response:', res.status, errBody);
+      throw new Error(`TTS failed: ${res.status}`);
+    }
 
     const blob = await res.blob();
+    if (blob.size === 0) throw new Error('Empty audio response');
+
     const url = URL.createObjectURL(blob);
     currentAudio = new Audio(url);
     btn.textContent = '⏹ Stop';
     btn.classList.add('playing');
-    currentAudio.play();
+
+    currentAudio.onerror = (e) => {
+      console.error('Audio playback error:', e);
+      URL.revokeObjectURL(url);
+      currentAudio = null;
+      btn.textContent = '🔊 Play';
+      btn.classList.remove('playing');
+    };
+
     currentAudio.onended = () => {
       URL.revokeObjectURL(url);
       currentAudio = null;
       btn.textContent = '🔊 Play';
       btn.classList.remove('playing');
     };
+
+    await currentAudio.play();
   } catch (err) {
     console.error('TTS error:', err);
     btn.textContent = '🔊 Play';
+    btn.classList.remove('playing');
   }
 }
 
-// Make globally accessible for onclick
-window.playTTS = playTTS;
+// Delegated click handler for play buttons
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.play-btn');
+  if (btn) playTTS(btn);
+});
 
 // ============================================================
 // Voice Input (Web Speech API)
@@ -404,7 +521,7 @@ function toggleRecording() {
     recognition.stop();
   } else {
     // Update language for current agent
-    recognition.lang = currentAgent === 'brasileiro' ? 'pt-BR' : 'en-US';
+    recognition.lang = currentAgent === 'brasileiro' ? 'pl' : 'en-US';
     recognition.start();
     isRecording = true;
     document.getElementById('micBtn').classList.add('recording');
@@ -437,12 +554,6 @@ function autoResize(textarea) {
 // ============================================================
 // Utilities
 // ============================================================
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function scrollToBottom() {
   const chatArea = document.getElementById('chatArea');

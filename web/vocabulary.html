@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakMate — Vocabulary</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    html, body { overflow: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav Bar -->
+  <nav class="nav-bar" id="navBar"></nav>
+
+  <!-- Page Content -->
+  <div class="page-container">
+
+    <!-- Header -->
+    <div class="vocab-header">
+      <h1>📚 Vocabulary</h1>
+      <div class="vocab-stats">
+        <span id="totalCount">0 words</span>
+        <span id="masteredCount">0 mastered</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="vocab-filters">
+      <select id="filterStatus">
+        <option value="all">All Words</option>
+        <option value="learning">Learning</option>
+        <option value="mastered">Mastered</option>
+      </select>
+      <input type="search" id="searchInput" placeholder="Search words..." />
+      <button class="btn-primary" id="flashcardBtn" onclick="startFlashcards()">🃏 Flashcards</button>
+    </div>
+
+    <!-- Word List -->
+    <div class="vocab-list" id="vocabList">
+      <div class="vocab-empty">
+        <div class="empty-icon">📖</div>
+        <p>Loading vocabulary...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flashcard Overlay -->
+  <div class="flashcard-overlay" id="flashcardOverlay">
+    <div class="flashcard">
+      <div class="flashcard-counter" id="fcCounter">1 / 10</div>
+      <div class="flashcard-word" id="fcWord">hello</div>
+      <div class="flashcard-hint" id="fcHint">Click reveal to see the translation</div>
+      <div class="flashcard-answer" id="fcAnswer"></div>
+      <div class="flashcard-controls">
+        <button class="btn-primary" id="fcRevealBtn" onclick="revealFlashcard()">Reveal</button>
+        <button class="btn-success" id="fcMasterBtn" onclick="masterFlashcard()" style="display:none">Mastered!</button>
+        <button class="btn-secondary" id="fcNextBtn" onclick="nextFlashcard()" style="display:none">Next</button>
+        <button class="btn-ghost" onclick="exitFlashcards()">Exit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/shared.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+    renderNav('vocabulary');
+
+    // State
+    let allWords = [];
+    let filteredWords = [];
+    let fcWords = [];
+    let fcIndex = 0;
+    let fcRevealed = false;
+
+    // Load vocabulary
+    async function loadVocabulary() {
+      try {
+        const res = await apiFetch('/api/vocabulary');
+        if (!res || !res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        allWords = data.vocabulary || data.words || [];
+        applyFilters();
+        updateStats();
+      } catch (err) {
+        console.error('Failed to load vocabulary:', err);
+        document.getElementById('vocabList').innerHTML = `
+          <div class="vocab-empty">
+            <div class="empty-icon">⚠️</div>
+            <p>Failed to load vocabulary. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Update stats
+    function updateStats() {
+      const total = allWords.length;
+      const mastered = allWords.filter(w => w.mastered).length;
+      document.getElementById('totalCount').textContent = `${total} word${total !== 1 ? 's' : ''}`;
+      document.getElementById('masteredCount').textContent = `${mastered} mastered`;
+    }
+
+    // Filter and search
+    function applyFilters() {
+      const status = document.getElementById('filterStatus').value;
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      filteredWords = allWords.filter(w => {
+        if (status === 'learning' && w.mastered) return false;
+        if (status === 'mastered' && !w.mastered) return false;
+        if (search) {
+          const word = (w.word || '').toLowerCase();
+          const translation = (w.translation || w.alternatives || '').toLowerCase();
+          if (!word.includes(search) && !translation.includes(search)) return false;
+        }
+        return true;
+      });
+
+      renderList();
+    }
+
+    // Render word list
+    function renderList() {
+      const list = document.getElementById('vocabList');
+
+      if (filteredWords.length === 0) {
+        list.innerHTML = `
+          <div class="vocab-empty">
+            <div class="empty-icon">📖</div>
+            <p>No words found. Start chatting with a tutor to build your vocabulary!</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = filteredWords.map(w => {
+        const word = escapeHtml(w.word || '');
+        const translation = escapeHtml(w.translation || w.alternatives || '');
+        const seen = w.times_seen || w.timesSeen || 1;
+        const date = formatDate(w.created_at || w.createdAt || w.date);
+        const isMastered = w.mastered;
+        const itemClass = isMastered ? 'vocab-item mastered' : 'vocab-item';
+        const btnLabel = isMastered ? '✓ Mastered' : 'Master';
+        const wordId = w.id || w._id || '';
+
+        return `
+          <div class="${itemClass}" data-id="${wordId}">
+            <div class="vocab-word">${word}</div>
+            <div class="vocab-translation">${translation}</div>
+            <div class="vocab-meta">
+              <span class="times-seen">seen ${seen}x</span>
+              <span>${date}</span>
+            </div>
+            <button class="master-btn" onclick="toggleMastered('${wordId}', ${!isMastered})">${btnLabel}</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle mastered status
+    async function toggleMastered(id, mastered) {
+      try {
+        const res = await apiFetch(`/api/vocabulary/${id}`, {
+          method: 'PATCH',
+          body: { mastered }
+        });
+
+        if (res && res.ok) {
+          // Update local state
+          const word = allWords.find(w => (w.id || w._id) === id);
+          if (word) word.mastered = mastered;
+          applyFilters();
+          updateStats();
+        }
+      } catch (err) {
+        console.error('Failed to toggle mastered:', err);
+      }
+    }
+
+    // ============================================================
+    // Flashcard Mode
+    // ============================================================
+
+    function startFlashcards() {
+      // Use unmastered words for flashcards, or all if none
+      fcWords = allWords.filter(w => !w.mastered);
+      if (fcWords.length === 0) fcWords = [...allWords];
+      if (fcWords.length === 0) {
+        alert('No words to practice yet!');
+        return;
+      }
+
+      // Shuffle
+      for (let i = fcWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [fcWords[i], fcWords[j]] = [fcWords[j], fcWords[i]];
+      }
+
+      // Limit to 20 cards per session
+      if (fcWords.length > 20) fcWords = fcWords.slice(0, 20);
+
+      fcIndex = 0;
+      fcRevealed = false;
+      showFlashcard();
+      document.getElementById('flashcardOverlay').style.display = 'flex';
+    }
+
+    function showFlashcard() {
+      const w = fcWords[fcIndex];
+      document.getElementById('fcCounter').textContent = `${fcIndex + 1} / ${fcWords.length}`;
+      document.getElementById('fcWord').textContent = w.word || '';
+      document.getElementById('fcHint').textContent = 'Click reveal to see the translation';
+      document.getElementById('fcAnswer').textContent = '';
+      document.getElementById('fcRevealBtn').style.display = 'inline-block';
+      document.getElementById('fcMasterBtn').style.display = 'none';
+      document.getElementById('fcNextBtn').style.display = 'none';
+      fcRevealed = false;
+    }
+
+    function revealFlashcard() {
+      const w = fcWords[fcIndex];
+      document.getElementById('fcAnswer').textContent = w.translation || w.alternatives || '';
+      document.getElementById('fcHint').textContent = '';
+      document.getElementById('fcRevealBtn').style.display = 'none';
+      document.getElementById('fcMasterBtn').style.display = 'inline-block';
+      document.getElementById('fcNextBtn').style.display = 'inline-block';
+      fcRevealed = true;
+    }
+
+    function masterFlashcard() {
+      const w = fcWords[fcIndex];
+      const id = w.id || w._id;
+      if (id) toggleMastered(id, true);
+      nextFlashcard();
+    }
+
+    function nextFlashcard() {
+      fcIndex++;
+      if (fcIndex >= fcWords.length) {
+        exitFlashcards();
+        return;
+      }
+      showFlashcard();
+    }
+
+    function exitFlashcards() {
+      document.getElementById('flashcardOverlay').style.display = 'none';
+      fcIndex = 0;
+      fcWords = [];
+      // Refresh list in case mastered status changed
+      applyFilters();
+      updateStats();
+    }
+
+    // Keyboard shortcuts for flashcards
+    document.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById('flashcardOverlay');
+      if (overlay.style.display !== 'flex') return;
+
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        if (!fcRevealed) {
+          revealFlashcard();
+        } else {
+          nextFlashcard();
+        }
+      } else if (e.key === 'm' && fcRevealed) {
+        masterFlashcard();
+      } else if (e.key === 'Escape') {
+        exitFlashcards();
+      }
+    });
+
+    // Filter event listeners
+    document.getElementById('filterStatus').addEventListener('change', applyFilters);
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+    // Load
+    loadVocabulary();
+  </script>
+</body>
+</html>

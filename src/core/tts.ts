@@ -1,5 +1,5 @@
 /**
- * SpeakMate TTS — edge-tts wrapper
+ * SpeakMate TTS — edge-tts-universal wrapper
  *
  * Uses edge-tts-universal for free Microsoft TTS.
  * Each agent has a mapped voice.
@@ -22,7 +22,7 @@ export function getVoiceForAgent(agentId: string): string {
 }
 
 /**
- * Generate speech audio buffer from text using edge-tts.
+ * Generate speech audio from text using edge-tts.
  * Returns MP3 audio as Buffer.
  */
 export async function generateSpeech(
@@ -31,30 +31,56 @@ export async function generateSpeech(
 ): Promise<Buffer> {
   const voice = getVoiceForAgent(agentId);
 
+  // Clean text for TTS — remove markdown, emojis that cause issues
+  const cleanText = text
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/#{1,3}\s/g, "")
+    .replace(/\[.*?\]/g, "")
+    .trim();
+
+  if (!cleanText) {
+    throw new Error("No text to synthesize");
+  }
+
   try {
-    // Dynamic import for edge-tts-universal
     const { EdgeTTS } = await import("edge-tts-universal");
-    const tts = new EdgeTTS();
-    await tts.setMetadata(voice, "audio-24khz-96kbitrate-mono-mp3");
+    const tts = new EdgeTTS(cleanText, voice);
+    const result = await tts.synthesize();
 
-    const readable = tts.toStream(text);
-    const chunks: Buffer[] = [];
+    // result.audio is a Blob — convert to Buffer
+    const arrayBuffer = await result.audio.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    return new Promise((resolve, reject) => {
-      readable.on("data", (chunk: Buffer) => {
-        // edge-tts-universal emits objects with { type, data }
-        if (chunk && (chunk as any).type === "audio") {
-          chunks.push(Buffer.from((chunk as any).data));
-        } else if (Buffer.isBuffer(chunk)) {
-          chunks.push(chunk);
-        }
-      });
-      readable.on("end", () => resolve(Buffer.concat(chunks)));
-      readable.on("error", reject);
-    });
+    if (buffer.length === 0) {
+      throw new Error("Generated audio is empty");
+    }
+
+    console.log(`[TTS] Generated ${buffer.length} bytes for agent ${agentId}`);
+    return buffer;
   } catch (err) {
     console.error(`[TTS] Error generating speech: ${err}`);
-    throw err;
+
+    // Fallback: try Communicate streaming API
+    try {
+      console.log("[TTS] Trying streaming fallback...");
+      const { Communicate } = await import("edge-tts-universal");
+      const comm = new Communicate(cleanText, { voice });
+      const chunks: Buffer[] = [];
+
+      for await (const chunk of comm.stream()) {
+        if (chunk.type === "audio" && chunk.data) {
+          chunks.push(Buffer.from(chunk.data));
+        }
+      }
+
+      const buffer = Buffer.concat(chunks);
+      console.log(`[TTS] Streaming generated ${buffer.length} bytes`);
+      return buffer;
+    } catch (err2) {
+      console.error(`[TTS] Streaming fallback also failed: ${err2}`);
+      throw err2;
+    }
   }
 }
 
