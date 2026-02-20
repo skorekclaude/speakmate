@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Secrets & tokens
+google-tokens.json
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Runtime
+*.log
+logs/
+__pycache__/
+
+# State files
+checkins-state.json
+
+# Windows artifacts
+nul
+
+# Ecosystem config (PM2 local)
+ecosystem.config.cjs

@@ -1,0 +1,37 @@
+{
+  "name": "allma",
+  "version": "0.1.0",
+  "description": "ALLMA — AI Life & Leadership Management Assistant. Personal Board of Directors powered by LLMs.",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "test": "bun test",
+    "lint": "bunx biome check src/",
+    "format": "bunx biome format --write src/"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT",
+  "author": "Marek Skorepa",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skore/allma.git"
+  },
+  "keywords": [
+    "ai",
+    "personal-assistant",
+    "board-of-directors",
+    "coaching",
+    "llm",
+    "agents"
+  ]
+}
