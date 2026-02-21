@@ -3,413 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SpeakMate — Speak English Like a Native with AI Tutors</title>
-  <meta name="description" content="Practice English with 6 AI tutors who correct you in real-time. Voice-first, free to start, no embarrassment.">
-  <meta name="theme-color" content="#0a0a0f">
-  <link rel="stylesheet" href="/assets/style.css">
+  <title>SpeakMate — AI Language Tutor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero {
+      text-align: center;
+      padding: 2rem;
+      max-width: 600px;
+    }
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero .subtitle {
+      font-size: 1.2rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    .agents-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .agent-card {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1rem;
+      width: 150px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .agent-card:hover { transform: translateY(-4px); border-color: #667eea; }
+    .agent-card .emoji { font-size: 2rem; margin-bottom: 0.5rem; }
+    .agent-card .name { font-weight: 600; margin-bottom: 0.25rem; }
+    .agent-card .desc { font-size: 0.75rem; color: #888; }
+    .login-form {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-form input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #0d0d1a;
+      color: #fff;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+    .login-form input:focus { border-color: #667eea; }
+    .login-form button {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .login-form button:hover { opacity: 0.9; }
+    .error { color: #ff6b6b; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+  </style>
 </head>
-<body class="landing">
+<body>
+  <div class="hero">
+    <h1>SpeakMate</h1>
+    <p class="subtitle">AI Language Tutor — Learn English & Portuguese with native speakers</p>
 
-  <!-- ============================================================
-       STICKY NAV
-       ============================================================ -->
-  <nav class="landing-nav" id="landingNav">
-    <div class="landing-nav-inner">
-      <a href="/" class="nav-brand">SpeakMate</a>
-      <div class="landing-nav-links">
-        <a href="#howItWorks">How It Works</a>
-        <a href="#tutors">Tutors</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
-      </div>
-      <a href="#loginSection" class="btn-primary btn-sm nav-cta">Start Free</a>
+    <div class="agents-preview">
+      <div class="agent-card"><div class="emoji">🎓</div><div class="name">Kasiunia</div><div class="desc">General English</div></div>
+      <div class="agent-card"><div class="emoji">🔥</div><div class="name">Zara</div><div class="desc">Gen-Z Slang</div></div>
+      <div class="agent-card"><div class="emoji">🧪</div><div class="name">Dr. Majka</div><div class="desc">Science</div></div>
+      <div class="agent-card"><div class="emoji">💕</div><div class="name">Kacper</div><div class="desc">Dating</div></div>
+      <div class="agent-card"><div class="emoji">🎨</div><div class="name">Helena</div><div class="desc">Art & Philosophy</div></div>
+      <div class="agent-card"><div class="emoji">🇧🇷</div><div class="name">Fernando</div><div class="desc">Portuguese</div></div>
     </div>
-  </nav>
 
-  <!-- ============================================================
-       1. HERO
-       ============================================================ -->
-  <section class="landing-hero">
-    <div class="hero-badge fade-in-up">Free AI Language Tutor</div>
-    <h1 class="fade-in-up delay-1">Speak English Like a Native<br><span class="hero-highlight">Without the Embarrassment</span></h1>
-    <p class="subtitle fade-in-up delay-2">Practice real conversations with AI tutors that correct your grammar, teach vocabulary, and never judge you. Voice-first. Available 24/7.</p>
-    <div class="hero-ctas fade-in-up delay-3">
-      <a href="#loginSection" class="btn-primary btn-lg">Start Free Lesson &rarr;</a>
-      <a href="#howItWorks" class="btn-ghost-link">See How It Works &darr;</a>
+    <div class="login-form">
+      <input type="email" id="emailInput" placeholder="Enter your email to start..." autocomplete="email" />
+      <button id="loginBtn" onclick="doLogin()">Start Learning →</button>
+      <p class="error" id="loginError"></p>
     </div>
-    <div class="hero-visual fade-in-up delay-4">
-      <div class="hero-chat-preview">
-        <div class="preview-msg preview-user">
-          <span class="preview-label">You</span>
-          <span class="preview-bubble preview-bubble-user">I goed to the store yesterday and buyed some food</span>
-        </div>
-        <div class="preview-msg preview-ai">
-          <span class="preview-label">Kasiunia</span>
-          <span class="preview-bubble preview-bubble-ai">Great sentence! Small fix: <strong>"I <span class="preview-correction">went</span> to the store and <span class="preview-correction">bought</span> some food."</strong> Both are irregular past tense verbs.</span>
-        </div>
-      </div>
-    </div>
-  </section>
+  </div>
 
-  <!-- ============================================================
-       2. SOCIAL PROOF BAR
-       ============================================================ -->
-  <section class="social-proof-bar fade-in-up">
-    <div class="proof-items">
-      <div class="proof-item">
-        <span class="proof-number">500+</span>
-        <span class="proof-label">conversations completed</span>
-      </div>
-      <div class="proof-divider"></div>
-      <div class="proof-item">
-        <span class="proof-number">6</span>
-        <span class="proof-label">AI tutors</span>
-      </div>
-      <div class="proof-divider"></div>
-      <div class="proof-item">
-        <span class="proof-number">Real-time</span>
-        <span class="proof-label">corrections</span>
-      </div>
-      <div class="proof-divider"></div>
-      <div class="proof-item">
-        <span class="proof-number">Free</span>
-        <span class="proof-label">to start</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       3. PAIN POINTS
-       ============================================================ -->
-  <section class="pain-section">
-    <h2 class="section-heading fade-in-up">Sound Familiar?</h2>
-    <p class="section-subtext fade-in-up">You want to speak English fluently, but...</p>
-    <div class="pain-grid">
-      <div class="pain-card fade-in-up delay-1">
-        <div class="pain-icon">😴</div>
-        <h3>Boring apps that don't work</h3>
-        <p>Multiple-choice drills and gamified streaks don't teach you to speak. You need real conversations, not fill-in-the-blank exercises that put you to sleep.</p>
-      </div>
-      <div class="pain-card fade-in-up delay-2">
-        <div class="pain-icon">😰</div>
-        <h3>Too shy to practice with people</h3>
-        <p>The fear of making mistakes in front of others is real. Freezing up on calls, avoiding English meetings, rehearsing sentences in your head but never saying them.</p>
-      </div>
-      <div class="pain-card fade-in-up delay-3">
-        <div class="pain-icon">💸</div>
-        <h3>Private tutors cost a fortune</h3>
-        <p>Quality tutors charge $30-80/hour, require scheduling, and you still only get 2-3 sessions a week. Not enough practice to build real fluency.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       4. HOW IT WORKS
-       ============================================================ -->
-  <section class="how-section" id="howItWorks">
-    <h2 class="section-heading fade-in-up">How It Works</h2>
-    <p class="section-subtext fade-in-up">Three steps. No signup friction. Start speaking in under a minute.</p>
-    <div class="how-steps fade-in-up">
-      <div class="how-step">
-        <div class="step-num">1</div>
-        <div class="step-title">Pick Your Tutor</div>
-        <div class="step-desc">Choose from 6 AI tutors, each with a unique personality and teaching style. From casual slang to academic English.</div>
-      </div>
-      <div class="how-step-arrow">&rarr;</div>
-      <div class="how-step">
-        <div class="step-num">2</div>
-        <div class="step-title">Start Talking</div>
-        <div class="step-desc">Type or use voice input. Have a real conversation about anything -- movies, work, travel, science, dating. Whatever interests you.</div>
-      </div>
-      <div class="how-step-arrow">&rarr;</div>
-      <div class="how-step">
-        <div class="step-num">3</div>
-        <div class="step-title">Get Corrections</div>
-        <div class="step-desc">Every message gets automatic grammar corrections with explanations. New vocabulary is saved and tracked so you see your progress.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       5. MEET YOUR TUTORS
-       ============================================================ -->
-  <section class="tutors-section" id="tutors">
-    <h2 class="section-heading fade-in-up">Meet Your Tutors</h2>
-    <p class="section-subtext fade-in-up">Each tutor has a unique personality, expertise, and teaching style. Pick the one that matches your goals.</p>
-    <div class="tutors-grid">
-      <a class="tutor-card fade-in-up delay-1" onclick="pickTutor('general')" href="javascript:void(0)">
-        <div class="tutor-emoji">🎓</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Kasiunia</div>
-          <div class="tutor-role">General English</div>
-          <div class="tutor-desc">Your everyday English buddy. Patient, encouraging, and great at explaining grammar rules without making it feel like school. Perfect for building confidence.</div>
-          <span class="tutor-lang">English</span>
-        </div>
-      </a>
-      <a class="tutor-card fade-in-up delay-2" onclick="pickTutor('youth')" href="javascript:void(0)">
-        <div class="tutor-emoji">🔥</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Zara</div>
-          <div class="tutor-role">Gen-Z Slang</div>
-          <div class="tutor-desc">Internet culture expert who speaks fluent meme. Learn modern slang, casual expressions, and how real young people actually talk online and IRL.</div>
-          <span class="tutor-lang">English</span>
-        </div>
-      </a>
-      <a class="tutor-card fade-in-up delay-3" onclick="pickTutor('chemist')" href="javascript:void(0)">
-        <div class="tutor-emoji">🧪</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Dr. Majka</div>
-          <div class="tutor-role">Science English</div>
-          <div class="tutor-desc">Chemistry professor turned language tutor. Master scientific terminology, academic writing style, and how to present research in English like a pro.</div>
-          <span class="tutor-lang">English</span>
-        </div>
-      </a>
-      <a class="tutor-card fade-in-up delay-1" onclick="pickTutor('dating')" href="javascript:void(0)">
-        <div class="tutor-emoji">💕</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Kacper</div>
-          <div class="tutor-role">Dating Coach</div>
-          <div class="tutor-desc">British charmer who teaches social English, flirting, small talk, and romantic vocabulary. Learn how to be witty and confident in English conversations.</div>
-          <span class="tutor-lang">English</span>
-        </div>
-      </a>
-      <a class="tutor-card fade-in-up delay-2" onclick="pickTutor('artist')" href="javascript:void(0)">
-        <div class="tutor-emoji">🎨</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Helena</div>
-          <div class="tutor-role">Art &amp; Philosophy</div>
-          <div class="tutor-desc">Creative soul who loves deep conversations about art, philosophy, music, and culture. Expand your vocabulary through meaningful, thought-provoking dialogue.</div>
-          <span class="tutor-lang">English</span>
-        </div>
-      </a>
-      <a class="tutor-card fade-in-up delay-3" onclick="pickTutor('brasileiro')" href="javascript:void(0)">
-        <div class="tutor-emoji">🇧🇷</div>
-        <div class="tutor-info">
-          <div class="tutor-name">Fernando</div>
-          <div class="tutor-role">Portuguese Teacher</div>
-          <div class="tutor-desc">Carioca spirit, endless patience. Learn Brazilian Portuguese from zero with real expressions, cultural context, and the warmth of a Rio local.</div>
-          <span class="tutor-lang">Portugu&ecirc;s</span>
-        </div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       6. COMPARISON TABLE
-       ============================================================ -->
-  <section class="compare-section fade-in-up">
-    <h2 class="section-heading">Why SpeakMate vs Others</h2>
-    <p class="section-subtext">See how SpeakMate stacks up against the alternatives.</p>
-    <div class="compare-table-wrap">
-      <table class="compare-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th class="compare-highlight">SpeakMate</th>
-            <th>Duolingo</th>
-            <th>Private Tutor</th>
-            <th>ChatGPT</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="compare-feature">Price</td>
-            <td class="compare-highlight"><span class="compare-good">Free</span></td>
-            <td>Free / $8/mo</td>
-            <td>$30-80/hr</td>
-            <td>$20/mo</td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Real conversations</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-x">&#10007;</span></td>
-            <td><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-partial">~</span></td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Grammar corrections</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span> automatic</td>
-            <td><span class="compare-partial">~</span> drills only</td>
-            <td><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-x">&#10007;</span> only if asked</td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Voice input</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-partial">~</span> limited</td>
-            <td><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-check">&#10003;</span></td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Vocabulary tracking</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span> automatic</td>
-            <td><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-x">&#10007;</span></td>
-            <td><span class="compare-x">&#10007;</span></td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Available 24/7</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-check">&#10003;</span></td>
-            <td><span class="compare-x">&#10007;</span></td>
-            <td><span class="compare-check">&#10003;</span></td>
-          </tr>
-          <tr>
-            <td class="compare-feature">Multiple personalities</td>
-            <td class="compare-highlight"><span class="compare-check">&#10003;</span> 6 tutors</td>
-            <td><span class="compare-x">&#10007;</span></td>
-            <td><span class="compare-x">&#10007;</span> 1 person</td>
-            <td><span class="compare-x">&#10007;</span> generic</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       7. TESTIMONIALS
-       ============================================================ -->
-  <section class="testimonials-section fade-in-up">
-    <h2 class="section-heading">What Learners Say</h2>
-    <div class="testimonials-grid">
-      <div class="testimonial-card">
-        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-        <p class="testimonial-text">"I was terrified of speaking English at work. After two weeks with Kasiunia, I started leading meetings in English. The corrections after every message made me learn 10x faster than Duolingo ever did."</p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">M</div>
-          <div>
-            <div class="testimonial-name">Maria S.</div>
-            <div class="testimonial-role">Marketing Manager, Brazil</div>
-          </div>
-        </div>
-      </div>
-      <div class="testimonial-card">
-        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-        <p class="testimonial-text">"Dr. Majka helped me write my entire thesis abstract in proper academic English. The vocabulary tracking feature is genius -- I can actually see how many new words I learn each week."</p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">K</div>
-          <div>
-            <div class="testimonial-name">Kenji T.</div>
-            <div class="testimonial-role">PhD Student, Japan</div>
-          </div>
-        </div>
-      </div>
-      <div class="testimonial-card">
-        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-        <p class="testimonial-text">"Zara taught me more real English in one week than my school did in years. Now I actually understand TikTok comments and can chat with my American friends without Google Translate."</p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">A</div>
-          <div>
-            <div class="testimonial-name">Anna K.</div>
-            <div class="testimonial-role">University Student, Poland</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       8. PRICING
-       ============================================================ -->
-  <section class="pricing-section fade-in-up" id="pricing">
-    <h2 class="section-heading">Simple Pricing</h2>
-    <p class="section-subtext">No tricks. No trial periods. Just learn.</p>
-    <div class="pricing-card">
-      <div class="pricing-badge">Current Plan</div>
-      <div class="pricing-amount">Free</div>
-      <div class="pricing-period">No credit card. No catch.</div>
-      <ul class="pricing-features">
-        <li><span class="pricing-check">&#10003;</span> Unlimited conversations</li>
-        <li><span class="pricing-check">&#10003;</span> All 6 AI tutors</li>
-        <li><span class="pricing-check">&#10003;</span> Voice input</li>
-        <li><span class="pricing-check">&#10003;</span> Real-time grammar corrections</li>
-        <li><span class="pricing-check">&#10003;</span> Automatic vocabulary tracking</li>
-        <li><span class="pricing-check">&#10003;</span> Progress dashboard</li>
-      </ul>
-      <a href="#loginSection" class="btn-primary btn-lg btn-full">Start Learning Free &rarr;</a>
-      <p class="pricing-note">Premium with advanced features coming soon.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       9. FAQ
-       ============================================================ -->
-  <section class="faq-section fade-in-up" id="faq">
-    <h2 class="section-heading">Frequently Asked Questions</h2>
-    <div class="faq-list">
-      <details class="faq-item">
-        <summary class="faq-question">Is it really free?</summary>
-        <p class="faq-answer">Yes, completely free. No credit card required, no trial period, no hidden limits. You get unlimited conversations with all 6 tutors, voice input, grammar corrections, and vocabulary tracking. We plan to add a premium tier later with advanced features, but the core experience will always be free.</p>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-question">How is this different from ChatGPT?</summary>
-        <p class="faq-answer">ChatGPT is a general assistant -- it won't correct your grammar unless you specifically ask. SpeakMate is purpose-built for language learning: every message you send gets automatic grammar corrections with explanations, new vocabulary is tracked and saved, and each tutor has a distinct personality that makes conversations feel natural and engaging.</p>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-question">What languages can I learn?</summary>
-        <p class="faq-answer">Currently, SpeakMate offers 5 English tutors with different specializations (general, Gen-Z slang, science, dating/social, art/philosophy) and 1 Brazilian Portuguese tutor. More languages are coming soon.</p>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-question">Do I need a microphone?</summary>
-        <p class="faq-answer">No. You can type your messages if you prefer. Voice input is optional but recommended -- speaking out loud is the fastest way to build confidence. Any device with a microphone works (phone, laptop, tablet).</p>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-question">Is my data private?</summary>
-        <p class="faq-answer">Your conversations are stored securely and used only to provide the service (tracking your vocabulary, showing your progress, maintaining conversation context). We don't sell your data or share it with third parties. You can delete your account and all associated data at any time.</p>
-      </details>
-    </div>
-  </section>
-
-  <!-- ============================================================
-       10. FINAL CTA + LOGIN
-       ============================================================ -->
-  <section class="final-cta-section fade-in-up" id="loginSection">
-    <div class="final-cta-content">
-      <h2>Ready to Start Speaking?</h2>
-      <p>Enter your email below and start your first conversation in under 60 seconds. No password, no setup, no excuses.</p>
-      <div class="login-box">
-        <input type="email" id="emailInput" placeholder="your@email.com" autocomplete="email" />
-        <button class="btn-primary btn-lg btn-full" id="loginBtn" onclick="doLogin()">Start Free Lesson &rarr;</button>
-        <p class="login-hint">No password needed. Just your email.</p>
-        <p class="error" id="loginError"></p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="landing-footer">
-    <p>SpeakMate &mdash; AI Language Tutor &middot; Built with <a href="https://github.com/skore">love</a></p>
-  </footer>
-
-  <script src="/assets/shared.js"></script>
   <script>
-    // Redirect if already logged in
-    if (getToken()) {
-      window.location.href = '/app';
-    }
+    // Check if already logged in
+    const token = localStorage.getItem('sm_token');
+    if (token) window.location.href = '/app';
 
-    // Pick tutor and go to chat
-    function pickTutor(agentId) {
-      localStorage.setItem('sm_agent', agentId);
-      if (getToken()) {
-        window.location.href = '/app';
-      } else {
-        document.getElementById('loginSection').scrollIntoView({ behavior: 'smooth' });
-        document.getElementById('emailInput').focus();
-      }
-    }
-
-    // Login
     async function doLogin() {
       const email = document.getElementById('emailInput').value.trim();
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginBtn');
 
-      if (!email) {
-        errorEl.textContent = 'Please enter your email';
-        errorEl.style.display = 'block';
-        return;
-      }
+      if (!email) { errorEl.textContent = 'Please enter your email'; errorEl.style.display = 'block'; return; }
 
       btn.textContent = 'Logging in...';
       btn.disabled = true;
@@ -424,43 +135,20 @@
 
         if (!res.ok) throw new Error(data.error || 'Login failed');
 
-        localStorage.setItem(TOKEN_KEY, data.token);
-        localStorage.setItem(EMAIL_KEY, email);
+        localStorage.setItem('sm_token', data.token);
+        localStorage.setItem('sm_email', email);
         window.location.href = '/app';
       } catch (err) {
         errorEl.textContent = err.message;
         errorEl.style.display = 'block';
-        btn.textContent = 'Start Free Lesson \u2192';
+        btn.textContent = 'Start Learning →';
         btn.disabled = false;
       }
     }
 
-    // Enter key login
     document.getElementById('emailInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') doLogin();
     });
-
-    // Smooth scroll for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth' });
-        }
-      });
-    });
-
-    // Sticky nav background on scroll
-    window.addEventListener('scroll', () => {
-      const nav = document.getElementById('landingNav');
-      if (nav) {
-        nav.classList.toggle('nav-scrolled', window.scrollY > 50);
-      }
-    });
-
-    // Scroll animations
-    initScrollAnimations();
   </script>
 </body>
 </html>
