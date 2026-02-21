@@ -14,7 +14,7 @@ User (Web App)
   ├── Agent Selector (carousel)
   │
   ├── 🎓 Kasiunia   — General English, grammar, natural phrasing          [Groq Llama]
-  ├── 🔥 Zara       — Gen-Z slang, internet language, social media        [Groq Llama]
+  ├── 🔥 Marek       — Gen-Z slang, internet language, social media        [Groq Llama]
   ├── 🧪 Dr. Majka  — Academic/scientific English, research writing       [Claude Sonnet]
   ├── 💕 Kacper     — British English, dating vocab, social skills        [Groq Llama]
   ├── 🎨 Helena     — Art & philosophy, debates, cultural criticism       [Claude Sonnet]
@@ -71,7 +71,7 @@ pm2 start ecosystem.config.cjs
 speakmate/
 ├── prompts/                # Tutor system prompts (markdown)
 │   ├── general.md          # 🎓 Kasiunia — General English
-│   ├── youth.md            # 🔥 Zara — Gen-Z Slang
+│   ├── youth.md            # 🔥 Marek — Gen-Z Slang
 │   ├── chemist.md          # 🧪 Dr. Majka — Science/Academic
 │   ├── dating.md           # 💕 Kacper — British Dating Coach
 │   ├── artist.md           # 🎨 Helena — Art & Philosophy
