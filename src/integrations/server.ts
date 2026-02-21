@@ -370,10 +370,16 @@ function serveStatic(pathname: string): Response {
     }
 
     const content = fs.readFileSync(filepath);
+    const ext = path.extname(filepath).toLowerCase();
+    // HTML and JS: no cache (ensures fresh content after deploys)
+    // CSS, images, fonts: cache for 1 hour
+    const cacheControl = (ext === ".html" || ext === ".js")
+      ? "no-cache, no-store, must-revalidate"
+      : "public, max-age=3600";
     return new Response(content, {
       headers: {
         "Content-Type": getMimeType(filepath),
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": cacheControl,
       },
     });
   } catch {
