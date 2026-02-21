@@ -13,19 +13,19 @@ User (Web App)
   │
   ├── Agent Selector (carousel)
   │
-  ├── 🎓 Alex       — General English, grammar, natural phrasing          [Groq Llama]
+  ├── 🎓 Kasiunia   — General English, grammar, natural phrasing          [Groq Llama]
   ├── 🔥 Zara       — Gen-Z slang, internet language, social media        [Groq Llama]
-  ├── 🧪 Dr. Chen   — Academic/scientific English, research writing       [Claude Sonnet]
-  ├── 💕 Sam        — British English, dating vocab, social skills        [Groq Llama]
-  ├── 🎨 Luna       — Art & philosophy, debates, cultural criticism       [Claude Sonnet]
-  └── 🇧🇷 Fernando    — Brazilian Portuguese from zero, carioca culture     [Groq Llama]
+  ├── 🧪 Dr. Majka  — Academic/scientific English, research writing       [Claude Sonnet]
+  ├── 💕 Kacper     — British English, dating vocab, social skills        [Groq Llama]
+  ├── 🎨 Helena     — Art & philosophy, debates, cultural criticism       [Claude Sonnet]
+  └── 🇧🇷 Fernando   — Brazilian Portuguese from zero, carioca culture     [Groq Llama]
 ```
 
 ## Tech Stack
 
 - **Runtime:** [Bun](https://bun.sh/) (TypeScript)
 - **LLM:** [Anthropic Claude](https://anthropic.com/) Sonnet (deep tier) + [Groq](https://console.groq.com/) Llama 3.3 70B (balanced tier, free)
-- **TTS:** [Edge TTS](https://github.com/nicosio2/edge-tts-universal) (free Microsoft voices, 6 unique per tutor)
+- **TTS:** [Edge TTS](https://pypi.org/project/edge-tts/) (Python CLI, free Microsoft voices, 6 unique per tutor)
 - **Database:** [Supabase](https://supabase.com/) (PostgreSQL — users, messages, vocabulary, progress)
 - **Frontend:** 4-page web app (landing, chat, progress, vocabulary)
 - **Deployment:** [Railway](https://railway.app/) (Dockerfile)
@@ -33,7 +33,7 @@ User (Web App)
 ## Features
 
 - **6 AI Tutors** — each with distinct personality, voice, and teaching specialty
-- **Hybrid LLM Routing** — deep-tier tutors (Luna, Dr. Chen) use Claude Sonnet; rest use Groq Llama (free)
+- **Hybrid LLM Routing** — deep-tier tutors (Helena, Dr. Majka) use Claude Sonnet; rest use Groq Llama (free)
 - **Structured Corrections** — every response parsed for `[RESPONSE]`, `[CORRECTION]`, `[VOCAB]` tags
 - **Text-to-Speech** — per-tutor voices via Edge TTS (American, British, Brazilian)
 - **Voice Input** — Web Speech API microphone with auto language switching (en-US / pt-BR)
@@ -70,11 +70,11 @@ pm2 start ecosystem.config.cjs
 ```
 speakmate/
 ├── prompts/                # Tutor system prompts (markdown)
-│   ├── general.md          # 🎓 Alex — General English
+│   ├── general.md          # 🎓 Kasiunia — General English
 │   ├── youth.md            # 🔥 Zara — Gen-Z Slang
-│   ├── chemist.md          # 🧪 Dr. Chen — Science/Academic
-│   ├── dating.md           # 💕 Sam — British Dating Coach
-│   ├── artist.md           # 🎨 Luna — Art & Philosophy
+│   ├── chemist.md          # 🧪 Dr. Majka — Science/Academic
+│   ├── dating.md           # 💕 Kacper — British Dating Coach
+│   ├── artist.md           # 🎨 Helena — Art & Philosophy
 │   └── brasileiro.md       # 🇧🇷 Fernando — Brazilian Portuguese
 ├── src/
 │   ├── agents/

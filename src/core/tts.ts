@@ -1,10 +1,17 @@
 /**
- * SpeakMate TTS — edge-tts-universal wrapper
+ * SpeakMate TTS — Python edge-tts subprocess
  *
- * Uses edge-tts-universal for free Microsoft TTS.
+ * Uses `python -m edge_tts` CLI via subprocess for reliable TTS.
+ * edge-tts-universal (JS) hangs in Bun on Windows due to WebSocket issues.
+ * Python edge-tts works flawlessly with the same Microsoft voices.
+ *
  * Each agent has a mapped voice.
- * Includes timeout protection to prevent hanging requests.
  */
+
+import { spawn } from "child_process";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs";
 
 // Voice map: agentId → edge-tts voice
 const VOICE_MAP: Record<string, string> = {
@@ -23,14 +30,64 @@ export function getVoiceForAgent(agentId: string): string {
   return VOICE_MAP[agentId] || DEFAULT_VOICE;
 }
 
-/** Wrap a promise with a timeout */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+/**
+ * Generate speech via Python edge-tts subprocess.
+ * Streams audio data through stdout pipe (no temp files).
+ */
+async function generateViaPython(text: string, voice: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    promise.then(
-      (val) => { clearTimeout(timer); resolve(val); },
-      (err) => { clearTimeout(timer); reject(err); },
-    );
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error("TTS timed out after 15s"));
+    }, TTS_TIMEOUT_MS);
+
+    // Use Python inline script to stream audio bytes to stdout
+    const script = `
+import asyncio, sys, edge_tts
+
+async def main():
+    communicate = edge_tts.Communicate(sys.argv[1], sys.argv[2])
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            sys.stdout.buffer.write(chunk["data"])
+    sys.stdout.buffer.flush()
+
+asyncio.run(main())
+`;
+
+    const proc = spawn("python", ["-c", script, text, voice], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const chunks: Buffer[] = [];
+    let stderrData = "";
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderrData += chunk.toString();
+    });
+
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        reject(new Error(`edge-tts exited with code ${code}: ${stderrData.trim()}`));
+        return;
+      }
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length === 0) {
+        reject(new Error("edge-tts returned empty audio"));
+        return;
+      }
+      resolve(buffer);
+    });
+
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      reject(new Error(`Failed to spawn python: ${err.message}`));
+    });
   });
 }
 
@@ -56,52 +113,13 @@ export async function generateSpeech(
     throw new Error("No text to synthesize");
   }
 
-  // Try Communicate streaming API first (more reliable with Bun)
   try {
-    const { Communicate } = await import("edge-tts-universal");
-    const comm = new Communicate(cleanText, { voice, connectionTimeout: 10_000 });
-    const chunks: Buffer[] = [];
-
-    const streamPromise = (async () => {
-      for await (const chunk of comm.stream()) {
-        if (chunk.type === "audio" && chunk.data) {
-          chunks.push(Buffer.from(chunk.data));
-        }
-      }
-      return Buffer.concat(chunks);
-    })();
-
-    const buffer = await withTimeout(streamPromise, TTS_TIMEOUT_MS, "TTS Communicate");
-
-    if (buffer.length === 0) {
-      throw new Error("Generated audio is empty");
-    }
-
-    console.log(`[TTS] Generated ${buffer.length} bytes for agent ${agentId} (${voice})`);
+    const buffer = await generateViaPython(cleanText, voice);
+    console.log(`[TTS] Generated ${buffer.length} bytes for ${agentId} (${voice})`);
     return buffer;
   } catch (err: any) {
-    console.error(`[TTS] Communicate failed: ${err.message}`);
-  }
-
-  // Fallback: try EdgeTTS simple API
-  try {
-    console.log("[TTS] Trying EdgeTTS fallback...");
-    const { EdgeTTS } = await import("edge-tts-universal");
-    const tts = new EdgeTTS(cleanText, voice);
-
-    const result = await withTimeout(tts.synthesize(), TTS_TIMEOUT_MS, "TTS EdgeTTS");
-    const arrayBuffer = await result.audio.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (buffer.length === 0) {
-      throw new Error("Generated audio is empty");
-    }
-
-    console.log(`[TTS] EdgeTTS generated ${buffer.length} bytes for agent ${agentId}`);
-    return buffer;
-  } catch (err2: any) {
-    console.error(`[TTS] EdgeTTS fallback also failed: ${err2.message}`);
-    throw new Error(`TTS unavailable: ${err2.message}`);
+    console.error(`[TTS] Failed: ${err.message}`);
+    throw err;
   }
 }
 

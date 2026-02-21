@@ -9,12 +9,12 @@ import type { AgentConfig } from "./types.ts";
 const agents: AgentConfig[] = [
   {
     id: "general",
-    name: "Alex",
+    name: "Kasiunia",
     emoji: "\ud83c\udf93",
     model: "balanced",
     description: "General English tutor. Everyday conversations with grammar corrections.",
     promptFile: "general.md",
-    commands: ["general", "alex", "a"],
+    commands: ["general", "kasiunia", "k"],
     targetLanguage: "en",
     voice: "en-US-GuyNeural",
   },
@@ -31,34 +31,34 @@ const agents: AgentConfig[] = [
   },
   {
     id: "chemist",
-    name: "Dr. Chen",
+    name: "Dr. Majka",
     emoji: "\ud83e\uddea",
     model: "deep",
     description: "Chemistry professor. Scientific terminology and academic English.",
     promptFile: "chemist.md",
-    commands: ["chemist", "chen", "c"],
+    commands: ["chemist", "majka", "c"],
     targetLanguage: "en",
     voice: "en-US-AriaNeural",
   },
   {
     id: "dating",
-    name: "Sam",
+    name: "Kacper",
     emoji: "\ud83d\udc95",
     model: "balanced",
     description: "British dating coach. Romantic vocabulary and flirting in English.",
     promptFile: "dating.md",
-    commands: ["dating", "sam", "d"],
+    commands: ["dating", "kacper", "d"],
     targetLanguage: "en",
     voice: "en-GB-RyanNeural",
   },
   {
     id: "artist",
-    name: "Luna",
+    name: "Helena",
     emoji: "\ud83c\udfa8",
     model: "deep",
     description: "Art & philosophy intellectual. Debates, culture, deep conversations.",
     promptFile: "artist.md",
-    commands: ["artist", "luna", "l"],
+    commands: ["artist", "helena", "h"],
     targetLanguage: "en",
     voice: "en-GB-SoniaNeural",
   },
@@ -93,5 +93,5 @@ export function getAllAgents(): AgentConfig[] {
 
 /** Default agent */
 export function getDefaultAgent(): AgentConfig {
-  return agents[0]; // Alex
+  return agents[0]; // Kasiunia
 }
