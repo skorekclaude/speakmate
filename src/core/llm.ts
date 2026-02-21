@@ -25,8 +25,8 @@ const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const ANTHROPIC_VERSION = "2023-06-01";
 
-// Debug: log API key presence at startup
-console.log(`[LLM] Backend: ${process.env.LLM_BACKEND || "groq"} | Anthropic key: ${ANTHROPIC_API_KEY ? "present (" + ANTHROPIC_API_KEY.slice(0, 10) + "...)" : "MISSING"} | Groq key: ${process.env.GROQ_API_KEY ? "present" : "MISSING"}`);
+// Debug: log API key presence at startup (never log key content!)
+console.log(`[LLM] Backend: ${process.env.LLM_BACKEND || "groq"} | Anthropic key: ${ANTHROPIC_API_KEY ? "present" : "MISSING"} | Groq key: ${process.env.GROQ_API_KEY ? "present" : "MISSING"}`);
 
 /** Anthropic model mapping: tier → Claude model */
 /** All tiers use Sonnet — best quality/cost ratio for language tutoring */

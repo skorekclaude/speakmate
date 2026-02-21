@@ -39,14 +39,27 @@ if (process.env.RAILWAY_PUBLIC_DOMAIN) {
   ALLOWED_ORIGINS.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
 }
 
-// Simple session store (token → user)
-const sessions = new Map<string, { userId: string; email: string }>();
+// Session store with TTL (token → user + created timestamp)
+const sessions = new Map<string, { userId: string; email: string; createdAt: number }>();
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Clean up expired sessions every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  let expired = 0;
+  for (const [token, session] of sessions) {
+    if (now - session.createdAt > SESSION_TTL_MS) {
+      sessions.delete(token);
+      expired++;
+    }
+  }
+  if (expired > 0) console.log(`[Session] Cleaned ${expired} expired sessions (${sessions.size} active)`);
+}, 30 * 60_000);
 
 // ============================================================
-// Rate Limiting — sliding window per IP
+// Rate Limiting — fixed-window counter (memory-efficient)
 // ============================================================
-
-const rateLimitStore = new Map<string, { timestamps: number[] }>();
+const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 const RATE_LIMITS: Record<string, number> = {
   "/api/chat/stream": 15, // 15 LLM calls per minute per IP
@@ -62,28 +75,25 @@ function isRateLimited(ip: string, endpoint: string): boolean {
   const now = Date.now();
   let entry = rateLimitStore.get(key);
 
-  if (!entry) {
-    entry = { timestamps: [] };
-    rateLimitStore.set(key, entry);
+  if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    // New window — reset counter
+    rateLimitStore.set(key, { count: 1, windowStart: now });
+    return false;
   }
 
-  // Remove expired timestamps
-  entry.timestamps = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-
-  if (entry.timestamps.length >= limit) {
+  if (entry.count >= limit) {
     return true;
   }
 
-  entry.timestamps.push(now);
+  entry.count++;
   return false;
 }
 
-// Clean up rate limit store every 5 minutes
+// Clean up stale rate limit entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore) {
-    entry.timestamps = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-    if (entry.timestamps.length === 0) rateLimitStore.delete(key);
+    if (now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(key);
   }
 }, 5 * 60_000);
 
@@ -126,7 +136,14 @@ function getSessionFromRequest(req: Request): { userId: string; email: string } 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
   const token = authHeader.replace("Bearer ", "");
-  return sessions.get(token) || null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  // Expire old sessions inline
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(token);
+    return null;
+  }
+  return session;
 }
 
 function getMimeType(filepath: string): string {
@@ -162,7 +179,7 @@ async function handleLogin(req: Request): Promise<Response> {
   try {
     const user = await getOrCreateUser(email);
     const token = crypto.randomUUID();
-    sessions.set(token, { userId: user.id!, email });
+    sessions.set(token, { userId: user.id!, email, createdAt: Date.now() });
     console.log(`[Auth] Login: ${email.substring(0, 3)}***`);
     return jsonResponse({ token, user }, 200, req);
   } catch (err: any) {
@@ -190,19 +207,21 @@ async function handleChatStream(req: Request): Promise<Response> {
 
   // SSE streaming response
   const encoder = new TextEncoder();
-  let fullResponse = "";
+  const chunks: string[] = [];
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
         for await (const chunk of chatStream(session.userId, agent.id, message)) {
-          fullResponse += chunk;
+          chunks.push(chunk);
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`)
           );
         }
 
         // Parse complete response and send structured data
+        const fullResponse = chunks.join("");
+        chunks.length = 0; // free memory
         const parsed = parseLLMResponse(fullResponse);
         controller.enqueue(
           encoder.encode(
@@ -384,9 +403,20 @@ export function startServer() {
         });
       }
 
-      // Health check (Railway / Docker)
+      // Health check (Railway / Docker) — includes memory stats for leak monitoring
       if (url.pathname === "/health") {
-        return jsonResponse({ status: "ok", uptime: process.uptime() });
+        const mem = process.memoryUsage();
+        return jsonResponse({
+          status: "ok",
+          uptime: Math.round(process.uptime()),
+          memory: {
+            rss: Math.round(mem.rss / 1024 / 1024),          // MB
+            heapUsed: Math.round(mem.heapUsed / 1024 / 1024), // MB
+            heapTotal: Math.round(mem.heapTotal / 1024 / 1024),// MB
+          },
+          sessions: sessions.size,
+          rateLimitEntries: rateLimitStore.size,
+        });
       }
 
       // Rate limiting on expensive endpoints

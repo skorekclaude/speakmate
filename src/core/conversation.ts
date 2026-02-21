@@ -134,14 +134,16 @@ export async function* chatStream(
     content: userMessage,
   });
 
-  let fullResponse = "";
+  const chunks: string[] = [];
 
   for await (const chunk of callLLMStream(messages, agent.model)) {
-    fullResponse += chunk;
+    chunks.push(chunk);
     yield chunk;
   }
 
   // Parse the complete response
+  const fullResponse = chunks.join("");
+  chunks.length = 0; // free chunk array memory
   const parsed = parseLLMResponse(fullResponse);
 
   // Save assistant message

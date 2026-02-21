@@ -303,7 +303,7 @@ function addMessage(role, text) {
       .replace(/\[RESPONSE\]/g, '').replace(/\[\/RESPONSE\]/g, '')
       .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, '')
       .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, '')
-      .replace(/^RESPONSE:\s*/im, '')
+      .replace(/RESPONSE:\s*/gi, '')
       .replace(/\{"word"\s*:[\s\S]*?\}/g, '')
       .replace(/\{"original"\s*:[\s\S]*?\}/g, '')
       .trim();
@@ -341,7 +341,7 @@ function updateStreamingBubble(el, raw) {
     .replace(/\[RESPONSE\]/g, '').replace(/\[\/RESPONSE\]/g, '')
     .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, '')
     .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, '')
-    .replace(/^RESPONSE:\s*/im, '')
+    .replace(/RESPONSE:\s*/gi, '')
     .replace(/\{"word"\s*:[\s\S]*?\}/g, '')
     .replace(/\{"original"\s*:[\s\S]*?\}/g, '')
     .trim();
@@ -428,6 +428,10 @@ async function playTTS(btn) {
   btn.textContent = '⏳ Loading...';
 
   try {
+    // Abort TTS fetch after 20s to prevent infinite loading state
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: {
@@ -435,7 +439,9 @@ async function playTTS(btn) {
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ text, agentId: currentAgent }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!res.ok) {
       const errBody = await res.text();
@@ -469,8 +475,10 @@ async function playTTS(btn) {
     await currentAudio.play();
   } catch (err) {
     console.error('TTS error:', err);
-    btn.textContent = '🔊 Play';
+    btn.textContent = err.name === 'AbortError' ? '🔊 Timeout' : '🔊 Error';
     btn.classList.remove('playing');
+    // Reset to Play after 2s
+    setTimeout(() => { btn.textContent = '🔊 Play'; }, 2000);
   }
 }
 

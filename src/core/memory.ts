@@ -169,12 +169,15 @@ export async function trackVocabulary(
   }
 }
 
-export async function updateVocabMastered(vocabId: string, mastered: boolean): Promise<void> {
+export async function updateVocabMastered(vocabId: string, mastered: boolean, userId?: string): Promise<void> {
   const sb = getSupabase();
-  const { error } = await sb
+  let query = sb
     .from("sm_vocabulary")
     .update({ mastered })
     .eq("id", vocabId);
+  // IDOR protection: scope update to authenticated user
+  if (userId) query = query.eq("user_id", userId);
+  const { error } = await query;
   if (error) console.error(`[Memory] Failed to update vocab: ${error.message}`);
 }
 

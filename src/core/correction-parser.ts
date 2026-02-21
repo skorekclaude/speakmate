@@ -32,8 +32,8 @@ export function parseLLMResponse(raw: string): ParsedResponse {
       .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, "")
       .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, "")
       .replace(/\[RESPONSE\][\s\S]*?(\[\/RESPONSE\]|$)/g, "")
-      // Strip loose "RESPONSE:" prefix
-      .replace(/^RESPONSE:\s*/im, "")
+      // Strip "RESPONSE:" anywhere (LLMs sometimes put it mid-text)
+      .replace(/RESPONSE:\s*/gi, "")
       // Strip inline JSON that looks like vocab/correction data
       .replace(/\{"word"\s*:[\s\S]*?\}/g, "")
       .replace(/\{"original"\s*:[\s\S]*?\}/g, "")
