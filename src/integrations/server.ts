@@ -42,8 +42,9 @@ if (process.env.RAILWAY_PUBLIC_DOMAIN) {
 // Session store with TTL (token → user + created timestamp)
 const sessions = new Map<string, { userId: string; email: string; createdAt: number }>();
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_SESSIONS = 500; // Hard cap — prevents unbounded growth
 
-// Clean up expired sessions every 30 minutes
+// Clean up expired sessions every 5 minutes (was 30 — too slow for leak prevention)
 setInterval(() => {
   const now = Date.now();
   let expired = 0;
@@ -53,14 +54,24 @@ setInterval(() => {
       expired++;
     }
   }
+  // Hard cap enforcement — evict oldest if over limit
+  if (sessions.size > MAX_SESSIONS) {
+    const sorted = [...sessions.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const evictCount = sessions.size - MAX_SESSIONS;
+    for (let i = 0; i < evictCount; i++) {
+      sessions.delete(sorted[i][0]);
+      expired++;
+    }
+  }
   if (expired > 0) console.log(`[Session] Cleaned ${expired} expired sessions (${sessions.size} active)`);
-}, 30 * 60_000);
+}, 5 * 60_000);
 
 // ============================================================
 // Rate Limiting — fixed-window counter (memory-efficient)
 // ============================================================
 const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const MAX_RATE_ENTRIES = 1000; // Hard cap — prevents unbounded growth from diverse IPs
 const RATE_LIMITS: Record<string, number> = {
   "/api/chat/stream": 15, // 15 LLM calls per minute per IP
   "/api/tts": 20,         // 20 TTS calls per minute per IP
@@ -76,7 +87,17 @@ function isRateLimited(ip: string, endpoint: string): boolean {
   let entry = rateLimitStore.get(key);
 
   if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    // New window — reset counter
+    // Hard cap — if too many entries, flush expired first
+    if (rateLimitStore.size >= MAX_RATE_ENTRIES) {
+      for (const [k, e] of rateLimitStore) {
+        if (now - e.windowStart >= RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(k);
+      }
+      // Still over? Drop oldest half
+      if (rateLimitStore.size >= MAX_RATE_ENTRIES) {
+        const keys = [...rateLimitStore.keys()];
+        for (let i = 0; i < keys.length / 2; i++) rateLimitStore.delete(keys[i]);
+      }
+    }
     rateLimitStore.set(key, { count: 1, windowStart: now });
     return false;
   }
@@ -89,13 +110,13 @@ function isRateLimited(ip: string, endpoint: string): boolean {
   return false;
 }
 
-// Clean up stale rate limit entries every 5 minutes
+// Clean up stale rate limit entries every 1 minute (was 5 — too slow)
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore) {
     if (now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(key);
   }
-}, 5 * 60_000);
+}, 60_000);
 
 // ============================================================
 // Helpers
