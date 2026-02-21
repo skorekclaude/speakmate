@@ -296,11 +296,21 @@ function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = `message ${role}`;
 
+  // For assistant messages loaded from history, strip raw tags
+  let displayText = text;
   if (role === 'assistant') {
+    displayText = text
+      .replace(/\[RESPONSE\]/g, '').replace(/\[\/RESPONSE\]/g, '')
+      .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, '')
+      .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, '')
+      .replace(/^RESPONSE:\s*/im, '')
+      .replace(/\{"word"\s*:[\s\S]*?\}/g, '')
+      .replace(/\{"original"\s*:[\s\S]*?\}/g, '')
+      .trim();
     const agent = agents.find(a => a.id === currentAgent);
     div.innerHTML = `
       <div class="agent-label">${agent ? agent.emoji + ' ' + agent.name : ''}</div>
-      <div class="bubble">${escapeHtml(text)}</div>
+      <div class="bubble">${escapeHtml(displayText)}</div>
     `;
   } else {
     div.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
@@ -326,11 +336,14 @@ function addStreamingBubble() {
 }
 
 function updateStreamingBubble(el, raw) {
-  // Show raw text during streaming (strip tags for display)
+  // Show raw text during streaming (strip all tags, JSON, and markers)
   const display = raw
     .replace(/\[RESPONSE\]/g, '').replace(/\[\/RESPONSE\]/g, '')
     .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, '')
     .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, '')
+    .replace(/^RESPONSE:\s*/im, '')
+    .replace(/\{"word"\s*:[\s\S]*?\}/g, '')
+    .replace(/\{"original"\s*:[\s\S]*?\}/g, '')
     .trim();
   el.querySelector('.bubble').textContent = display;
   scrollToBottom();
@@ -366,7 +379,11 @@ function addParsedMessage(parsed) {
   if (parsed.vocabulary && parsed.vocabulary.length > 0) {
     html += '<div class="vocab-row">';
     for (const v of parsed.vocabulary) {
-      html += `<span class="vocab-chip">${escapeHtml(v.word)} <span class="vocab-arrow">→</span> ${escapeHtml(v.alternatives)}</span>`;
+      html += `<span class="vocab-chip">${escapeHtml(v.word)} <span class="vocab-arrow">→</span> ${escapeHtml(v.alternatives)}`;
+      if (v.example) {
+        html += `<br><small style="opacity:0.7">${escapeHtml(v.example)}</small>`;
+      }
+      html += `</span>`;
     }
     html += '</div>';
   }

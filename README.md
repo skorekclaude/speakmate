@@ -18,7 +18,7 @@ User (Web App)
   ├── 🧪 Dr. Chen   — Academic/scientific English, research writing       [Claude Sonnet]
   ├── 💕 Sam        — British English, dating vocab, social skills        [Groq Llama]
   ├── 🎨 Luna       — Art & philosophy, debates, cultural criticism       [Claude Sonnet]
-  └── 🇧🇷 Rafael    — Brazilian Portuguese from zero, carioca culture     [Groq Llama]
+  └── 🇧🇷 Fernando    — Brazilian Portuguese from zero, carioca culture     [Groq Llama]
 ```
 
 ## Tech Stack
@@ -75,7 +75,7 @@ speakmate/
 │   ├── chemist.md          # 🧪 Dr. Chen — Science/Academic
 │   ├── dating.md           # 💕 Sam — British Dating Coach
 │   ├── artist.md           # 🎨 Luna — Art & Philosophy
-│   └── brasileiro.md       # 🇧🇷 Rafael — Brazilian Portuguese
+│   └── brasileiro.md       # 🇧🇷 Fernando — Brazilian Portuguese
 ├── src/
 │   ├── agents/
 │   │   ├── types.ts        # Core type definitions

@@ -26,6 +26,7 @@ export interface Correction {
 export interface VocabSuggestion {
   word: string;
   alternatives: string;
+  example?: string;
 }
 
 export interface ParsedResponse {
