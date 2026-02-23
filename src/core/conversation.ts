@@ -73,13 +73,14 @@ async function buildMessages(
 export async function chat(
   userId: string,
   agentId: string,
-  userMessage: string
+  userMessage: string,
+  userApiKey?: string
 ): Promise<ParsedResponse> {
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
   const messages = await buildMessages(userId, agentId, userMessage);
-  const response = await callLLM(messages, agent.model);
+  const response = await callLLM(messages, agent.model, userApiKey);
 
   // Parse the structured response
   const parsed = parseLLMResponse(response.content);
@@ -119,7 +120,8 @@ export async function chat(
 export async function* chatStream(
   userId: string,
   agentId: string,
-  userMessage: string
+  userMessage: string,
+  userApiKey?: string
 ): AsyncGenerator<string> {
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
@@ -136,7 +138,7 @@ export async function* chatStream(
 
   const chunks: string[] = [];
 
-  for await (const chunk of callLLMStream(messages, agent.model)) {
+  for await (const chunk of callLLMStream(messages, agent.model, userApiKey)) {
     chunks.push(chunk);
     yield chunk;
   }

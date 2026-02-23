@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpeakMate — Settings</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    /* Settings Page Styles */
+    .settings-container { max-width: 700px; margin: 0 auto; padding: 2rem 1.5rem; min-height: calc(100vh - 52px); overflow-y: auto; }
+    .settings-container h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .settings-subtitle { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .byok-section h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .byok-desc { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .provider-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+    .provider-card:hover { border-color: var(--primary); }
+    .provider-card.has-key { border-left: 3px solid var(--success); }
+
+    .provider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .provider-info { display: flex; align-items: center; gap: 0.75rem; }
+    .provider-icon { font-size: 1.5rem; }
+    .provider-name { font-weight: 700; font-size: 1.05rem; }
+    .provider-model { font-size: 0.8rem; color: var(--text-dim); }
+
+    .provider-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+    }
+    .provider-status.active { background: rgba(74, 222, 128, 0.1); color: var(--success); }
+    .provider-status.inactive { background: rgba(136, 136, 136, 0.1); color: var(--text-dim); }
+
+    .key-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .key-input-row input {
+      flex: 1;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .key-input-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+    .key-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .btn-sm {
+      padding: 0.4rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+    }
+    .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-sm.save { border-color: var(--success); color: var(--success); background: rgba(74, 222, 128, 0.1); }
+    .btn-sm.save:hover { opacity: 0.8; }
+    .btn-sm.remove { border-color: var(--error); color: var(--error); }
+    .btn-sm.remove:hover { background: rgba(255, 107, 107, 0.1); }
+    .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .key-msg {
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      min-height: 1.2rem;
+    }
+    .key-msg.success { color: var(--success); }
+    .key-msg.error { color: var(--error); }
+
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+    .info-box strong { color: var(--text); }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-top: 1.5rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav Bar -->
+  <nav class="nav-bar" id="navBar"></nav>
+
+  <div class="settings-container">
+    <h1>Settings</h1>
+    <p class="settings-subtitle">Manage your API keys and preferences</p>
+
+    <div class="byok-section">
+      <h2>Bring Your Own Key (BYOK)</h2>
+      <p class="byok-desc">
+        Use your own API keys to connect directly to LLM providers.
+        Your keys are encrypted with AES-256-GCM before storage and never logged.
+      </p>
+
+      <!-- Anthropic Card -->
+      <div class="provider-card" id="anthropicCard">
+        <div class="provider-header">
+          <div class="provider-info">
+            <span class="provider-icon">&#129302;</span>
+            <div>
+              <div class="provider-name">Anthropic (Claude)</div>
+              <div class="provider-model">Claude Sonnet 4 — premium quality</div>
+            </div>
+          </div>
+          <span class="provider-status inactive" id="anthropicStatus">
+            <span id="anthropicDot">&#9679;</span> Not configured
+          </span>
+        </div>
+        <div class="key-input-row">
+          <input type="password" id="anthropicKey" placeholder="sk-ant-api03-..." autocomplete="off" />
+        </div>
+        <div class="key-actions">
+          <button class="btn-sm" onclick="testKey('anthropic')" id="anthropicTestBtn">Test</button>
+          <button class="btn-sm save" onclick="saveKey('anthropic')" id="anthropicSaveBtn">Save Key</button>
+          <button class="btn-sm remove" onclick="removeKey('anthropic')" id="anthropicRemoveBtn" style="display:none;">Remove</button>
+        </div>
+        <div class="key-msg" id="anthropicMsg"></div>
+      </div>
+
+      <!-- Groq Card -->
+      <div class="provider-card" id="groqCard">
+        <div class="provider-header">
+          <div class="provider-info">
+            <span class="provider-icon">&#9889;</span>
+            <div>
+              <div class="provider-name">Groq (Llama)</div>
+              <div class="provider-model">Llama 3.3 70B — free &amp; fast</div>
+            </div>
+          </div>
+          <span class="provider-status inactive" id="groqStatus">
+            <span id="groqDot">&#9679;</span> Not configured
+          </span>
+        </div>
+        <div class="key-input-row">
+          <input type="password" id="groqKey" placeholder="gsk_..." autocomplete="off" />
+        </div>
+        <div class="key-actions">
+          <button class="btn-sm" onclick="testKey('groq')" id="groqTestBtn">Test</button>
+          <button class="btn-sm save" onclick="saveKey('groq')" id="groqSaveBtn">Save Key</button>
+          <button class="btn-sm remove" onclick="removeKey('groq')" id="groqRemoveBtn" style="display:none;">Remove</button>
+        </div>
+        <div class="key-msg" id="groqMsg"></div>
+      </div>
+
+      <div class="info-box">
+        <strong>How it works:</strong> When you save an API key, SpeakMate will use YOUR key instead of the shared key for LLM calls.
+        This means your usage goes directly to your account — no limits, no shared quota.
+        Keys are encrypted at rest with AES-256-GCM and never exposed in logs.
+      </div>
+
+      <a href="/app" class="back-link">&#8592; Back to Chat</a>
+    </div>
+  </div>
+
+  <script src="/assets/shared.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+    renderNav('settings');
+
+    // ============================================================
+    // BYOK Settings Logic
+    // ============================================================
+
+    async function loadStatus() {
+      try {
+        const res = await apiFetch('/api/settings/apikey');
+        if (!res || !res.ok) return;
+        const { status } = await res.json();
+
+        updateCardState('anthropic', status.anthropic);
+        updateCardState('groq', status.groq);
+      } catch (e) {
+        console.error('[Settings] Failed to load BYOK status:', e);
+      }
+    }
+
+    function updateCardState(provider, hasKey) {
+      const card = document.getElementById(provider + 'Card');
+      const status = document.getElementById(provider + 'Status');
+      const removeBtn = document.getElementById(provider + 'RemoveBtn');
+      const input = document.getElementById(provider + 'Key');
+
+      if (hasKey) {
+        card.classList.add('has-key');
+        status.className = 'provider-status active';
+        status.innerHTML = '<span>&#9679;</span> Active';
+        removeBtn.style.display = '';
+        input.placeholder = '********** (saved)';
+        input.value = '';
+      } else {
+        card.classList.remove('has-key');
+        status.className = 'provider-status inactive';
+        status.innerHTML = '<span>&#9679;</span> Not configured';
+        removeBtn.style.display = 'none';
+        input.placeholder = provider === 'anthropic' ? 'sk-ant-api03-...' : 'gsk_...';
+      }
+    }
+
+    function showMsg(provider, text, type) {
+      const el = document.getElementById(provider + 'Msg');
+      el.textContent = text;
+      el.className = 'key-msg ' + type;
+      if (type === 'success') setTimeout(() => { el.textContent = ''; }, 5000);
+    }
+
+    async function testKey(provider) {
+      const input = document.getElementById(provider + 'Key');
+      const key = input.value.trim();
+      if (!key) { showMsg(provider, 'Enter an API key first.', 'error'); return; }
+
+      const btn = document.getElementById(provider + 'TestBtn');
+      btn.disabled = true;
+      btn.textContent = 'Testing...';
+      showMsg(provider, '', '');
+
+      try {
+        let ok = false;
+        if (provider === 'anthropic') {
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': key,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 10,
+              messages: [{ role: 'user', content: 'Hi' }],
+            }),
+          });
+          ok = res.ok;
+          if (!ok) {
+            const err = await res.text();
+            showMsg(provider, 'Invalid key: ' + (res.status === 401 ? 'Authentication failed' : res.status), 'error');
+          }
+        } else {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + key,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              max_tokens: 10,
+              messages: [{ role: 'user', content: 'Hi' }],
+            }),
+          });
+          ok = res.ok;
+          if (!ok) {
+            showMsg(provider, 'Invalid key: ' + (res.status === 401 ? 'Authentication failed' : res.status), 'error');
+          }
+        }
+
+        if (ok) showMsg(provider, 'Key is valid!', 'success');
+      } catch (e) {
+        showMsg(provider, 'Test failed: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Test';
+      }
+    }
+
+    async function saveKey(provider) {
+      const input = document.getElementById(provider + 'Key');
+      const key = input.value.trim();
+      if (!key) { showMsg(provider, 'Enter an API key first.', 'error'); return; }
+
+      const btn = document.getElementById(provider + 'SaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const res = await apiFetch('/api/settings/apikey', {
+          method: 'POST',
+          body: { provider, apiKey: key },
+        });
+
+        if (!res || !res.ok) {
+          const data = await res?.json().catch(() => ({}));
+          showMsg(provider, 'Save failed: ' + (data.error || 'Unknown error'), 'error');
+          return;
+        }
+
+        const data = await res.json();
+        showMsg(provider, 'Key saved! (' + data.masked + ')', 'success');
+        input.value = '';
+        updateCardState(provider, true);
+      } catch (e) {
+        showMsg(provider, 'Save failed: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Key';
+      }
+    }
+
+    async function removeKey(provider) {
+      if (!confirm('Remove your ' + provider + ' API key?')) return;
+
+      const btn = document.getElementById(provider + 'RemoveBtn');
+      btn.disabled = true;
+
+      try {
+        const res = await apiFetch('/api/settings/apikey', {
+          method: 'DELETE',
+          body: { provider },
+        });
+
+        if (!res || !res.ok) {
+          showMsg(provider, 'Remove failed.', 'error');
+          return;
+        }
+
+        showMsg(provider, 'Key removed.', 'success');
+        updateCardState(provider, false);
+      } catch (e) {
+        showMsg(provider, 'Remove failed: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Load initial state
+    loadStatus();
+  </script>
+</body>
+</html>

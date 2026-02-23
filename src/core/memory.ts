@@ -6,6 +6,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { encrypt, decrypt, maskApiKey } from "./crypto.ts";
 
 let supabase: SupabaseClient | null = null;
 
@@ -238,4 +239,107 @@ export async function getProgress(userId: string, days: number = 30): Promise<an
     .order("date", { ascending: true });
 
   return data || [];
+}
+
+// ============================================================
+// BYOK — User API Key Storage (encrypted in settings JSONB)
+// ============================================================
+
+export type ByokProvider = "anthropic" | "groq";
+
+/**
+ * Auto-migration: ensure `settings JSONB` column exists on sm_users.
+ * Runs once on first BYOK operation. Uses Supabase REST check —
+ * if column missing, creates a one-time RPC to add it.
+ */
+let _byokMigrationDone = false;
+
+async function ensureByokColumn(): Promise<void> {
+  if (_byokMigrationDone) return;
+  _byokMigrationDone = true; // prevent re-entry
+
+  try {
+    const sb = getSupabase();
+    // Quick probe — select settings from any row (limit 1)
+    const { error } = await sb.from("sm_users").select("settings").limit(1);
+
+    if (error && error.code === "42703") {
+      // Column doesn't exist — create it via RPC
+      console.log("[BYOK] Column 'settings' missing, creating auto-migration RPC...");
+
+      // First create the migration function
+      const { error: rpcCreateErr } = await sb.rpc("exec_sql", {
+        query: "ALTER TABLE sm_users ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'"
+      }).single();
+
+      if (rpcCreateErr) {
+        // RPC doesn't exist — we'll create settings on first write by patching the row
+        // This is a soft fallback — column must be added via SQL editor
+        console.warn("[BYOK] Cannot auto-migrate — please run migration_002_byok.sql manually:");
+        console.warn("  ALTER TABLE sm_users ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}';");
+        console.warn("  CREATE INDEX IF NOT EXISTS idx_sm_users_settings ON sm_users USING gin (settings);");
+      } else {
+        console.log("[BYOK] ✅ Column 'settings' added to sm_users");
+      }
+    } else {
+      console.log("[BYOK] Column 'settings' exists — migration OK");
+    }
+  } catch (e) {
+    console.warn("[BYOK] Migration check failed (non-critical):", e);
+  }
+}
+
+export async function getUserApiKey(userId: string, provider: ByokProvider): Promise<string | null> {
+  try {
+    if (!process.env.BYOK_ENCRYPTION_KEY) return null;
+    await ensureByokColumn();
+    const sb = getSupabase();
+    const { data, error } = await sb
+      .from("sm_users")
+      .select("settings")
+      .eq("id", userId)
+      .single();
+    if (error || !data?.settings?.api_keys?.[provider]) return null;
+    return decrypt(data.settings.api_keys[provider]);
+  } catch (e) {
+    console.error(`[BYOK] Failed to get ${provider} key for ${userId}:`, e);
+    return null;
+  }
+}
+
+export async function setUserApiKey(userId: string, provider: ByokProvider, apiKey: string): Promise<void> {
+  await ensureByokColumn();
+  const sb = getSupabase();
+  const { data: user } = await sb.from("sm_users").select("settings").eq("id", userId).single();
+  const settings = user?.settings || {};
+  if (!settings.api_keys) settings.api_keys = {};
+  settings.api_keys[provider] = encrypt(apiKey);
+  const { error } = await sb.from("sm_users").update({ settings }).eq("id", userId);
+  if (error) throw new Error(`Failed to save API key: ${error.message}`);
+  console.log(`[BYOK] Saved ${provider} key for user ${userId} (${maskApiKey(apiKey)})`);
+}
+
+export async function removeUserApiKey(userId: string, provider: ByokProvider): Promise<void> {
+  const sb = getSupabase();
+  const { data: user } = await sb.from("sm_users").select("settings").eq("id", userId).single();
+  const settings = user?.settings || {};
+  if (settings.api_keys?.[provider]) {
+    delete settings.api_keys[provider];
+    const { error } = await sb.from("sm_users").update({ settings }).eq("id", userId);
+    if (error) throw new Error(`Failed to remove API key: ${error.message}`);
+    console.log(`[BYOK] Removed ${provider} key for user ${userId}`);
+  }
+}
+
+export async function getUserByokStatus(userId: string): Promise<Record<ByokProvider, boolean>> {
+  const result: Record<ByokProvider, boolean> = { anthropic: false, groq: false };
+  try {
+    if (!process.env.BYOK_ENCRYPTION_KEY) return result;
+    const sb = getSupabase();
+    const { data } = await sb.from("sm_users").select("settings").eq("id", userId).single();
+    const keys = data?.settings?.api_keys || {};
+    result.anthropic = !!keys.anthropic;
+    result.groq = !!keys.groq;
+  } catch {}
+  return result;
 }

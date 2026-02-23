@@ -20,7 +20,8 @@
 import { chatStream } from "../core/conversation.ts";
 import { parseLLMResponse } from "../core/correction-parser.ts";
 import { generateSpeech } from "../core/tts.ts";
-import { getOrCreateUser, getVocabulary, getProgress, clearMessages, getRecentMessages, updateVocabMastered } from "../core/memory.ts";
+import { getOrCreateUser, getVocabulary, getProgress, clearMessages, getRecentMessages, updateVocabMastered, getUserApiKey, setUserApiKey, removeUserApiKey, getUserByokStatus, type ByokProvider } from "../core/memory.ts";
+import { maskApiKey } from "../core/crypto.ts";
 import { getAllAgents, getAgent } from "../agents/registry.ts";
 import { getNews, refreshNews } from "../core/news-fetcher.ts";
 import * as fs from "fs";
@@ -127,7 +128,7 @@ function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") || "";
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Vary": "Origin",
   };
   if (ALLOWED_ORIGINS.includes(origin)) {
@@ -224,7 +225,10 @@ async function handleChatStream(req: Request): Promise<Response> {
   const agent = getAgent(agentId || "general");
   if (!agent) return jsonResponse({ error: "Agent not found" }, 404, req);
 
-  console.log(`[Chat] user:${session.userId.substring(0, 8)} → ${agent.id}: ${message.substring(0, 50)}...`);
+  // BYOK: load user's API key (Anthropic for deep tier, Groq for others)
+  const userApiKey = await getUserApiKey(session.userId, "anthropic") || await getUserApiKey(session.userId, "groq") || undefined;
+
+  console.log(`[Chat] user:${session.userId.substring(0, 8)} → ${agent.id}${userApiKey ? " (BYOK)" : ""}: ${message.substring(0, 50)}...`);
 
   // SSE streaming response
   const encoder = new TextEncoder();
@@ -233,7 +237,7 @@ async function handleChatStream(req: Request): Promise<Response> {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of chatStream(session.userId, agent.id, message)) {
+        for await (const chunk of chatStream(session.userId, agent.id, message, userApiKey)) {
           chunks.push(chunk);
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`)
@@ -364,6 +368,54 @@ function handleAgents(req: Request): Response {
 }
 
 // ============================================================
+// BYOK — API Key Management Endpoints
+// ============================================================
+
+async function handleByokSet(req: Request): Promise<Response> {
+  const session = getSessionFromRequest(req);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401, req);
+
+  const { provider, apiKey } = await req.json();
+  if (!provider || !apiKey) return jsonResponse({ error: "provider and apiKey required" }, 400, req);
+  if (!["anthropic", "groq"].includes(provider)) return jsonResponse({ error: "Invalid provider" }, 400, req);
+  if (typeof apiKey !== "string" || apiKey.length < 10 || apiKey.length > 256) {
+    return jsonResponse({ error: "Invalid API key format" }, 400, req);
+  }
+
+  try {
+    await setUserApiKey(session.userId, provider as ByokProvider, apiKey);
+    return jsonResponse({ ok: true, masked: maskApiKey(apiKey) }, 200, req);
+  } catch (err: any) {
+    return jsonResponse({ error: err.message }, 500, req);
+  }
+}
+
+async function handleByokRemove(req: Request): Promise<Response> {
+  const session = getSessionFromRequest(req);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401, req);
+
+  const { provider } = await req.json();
+  if (!provider || !["anthropic", "groq"].includes(provider)) {
+    return jsonResponse({ error: "Invalid provider" }, 400, req);
+  }
+
+  try {
+    await removeUserApiKey(session.userId, provider as ByokProvider);
+    return jsonResponse({ ok: true }, 200, req);
+  } catch (err: any) {
+    return jsonResponse({ error: err.message }, 500, req);
+  }
+}
+
+async function handleByokStatus(req: Request): Promise<Response> {
+  const session = getSessionFromRequest(req);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401, req);
+
+  const status = await getUserByokStatus(session.userId);
+  return jsonResponse({ status }, 200, req);
+}
+
+// ============================================================
 // Static File Server (with path traversal protection)
 // ============================================================
 
@@ -376,6 +428,8 @@ function serveStatic(pathname: string): Response {
     ? path.join(WEB_DIR, "progress.html")
     : pathname === "/vocabulary"
     ? path.join(WEB_DIR, "vocabulary.html")
+    : pathname === "/settings"
+    ? path.join(WEB_DIR, "settings.html")
     : path.join(WEB_DIR, pathname);
 
   // Resolve to absolute and verify it's within WEB_DIR (prevent path traversal)
@@ -489,6 +543,17 @@ export function startServer() {
         return jsonResponse({ email: session.email, userId: session.userId }, 200, req);
       }
 
+      // BYOK — API Key Management
+      if (url.pathname === "/api/settings/apikey" && req.method === "POST") {
+        return handleByokSet(req);
+      }
+      if (url.pathname === "/api/settings/apikey" && req.method === "DELETE") {
+        return handleByokRemove(req);
+      }
+      if (url.pathname === "/api/settings/apikey" && req.method === "GET") {
+        return handleByokStatus(req);
+      }
+
       // News headlines (public endpoint — no auth needed)
       if (url.pathname === "/api/news" && req.method === "GET") {
         const items = await getNews();
@@ -502,6 +567,7 @@ export function startServer() {
 
   console.log(`\n🗣️  SpeakMate running at http://${hostname}:${PORT}`);
   console.log(`   App: http://localhost:${PORT}/app`);
+  console.log(`   Settings: http://localhost:${PORT}/settings`);
   console.log(`   API: http://localhost:${PORT}/api/agents`);
   console.log(`   CORS: ${ALLOWED_ORIGINS.join(", ")}`);
   console.log(`   Rate limits: chat=${RATE_LIMITS["/api/chat/stream"]}/min, tts=${RATE_LIMITS["/api/tts"]}/min\n`);

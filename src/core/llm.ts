@@ -129,7 +129,8 @@ export interface LLMResponse {
  */
 async function callAnthropic(
   messages: LLMMessage[],
-  tier: ModelTier
+  tier: ModelTier,
+  userApiKey?: string
 ): Promise<LLMResponse> {
   const model = ANTHROPIC_MODEL_MAP[tier];
   const startTime = Date.now();
@@ -168,10 +169,11 @@ async function callAnthropic(
     body.system = systemPrompt;
   }
 
+  const apiKey = userApiKey || ANTHROPIC_API_KEY;
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
+      "x-api-key": apiKey,
       "anthropic-version": ANTHROPIC_VERSION,
       "content-type": "application/json",
     },
@@ -192,7 +194,7 @@ async function callAnthropic(
 
   trackCost(model, usage.input_tokens || 0, usage.output_tokens || 0);
   console.log(
-    `[LLM] ${model} | ${usage.input_tokens + usage.output_tokens} tokens | $${((usage.input_tokens * (MODEL_COSTS[model]?.input || 0) + usage.output_tokens * (MODEL_COSTS[model]?.output || 0)) / 1_000_000).toFixed(4)} | ${latencyMs}ms`
+    `[LLM] ${model}${userApiKey ? " (BYOK)" : ""} | ${usage.input_tokens + usage.output_tokens} tokens | $${((usage.input_tokens * (MODEL_COSTS[model]?.input || 0) + usage.output_tokens * (MODEL_COSTS[model]?.output || 0)) / 1_000_000).toFixed(4)} | ${latencyMs}ms`
   );
 
   return {
@@ -213,7 +215,8 @@ async function callAnthropic(
  */
 async function* callAnthropicStream(
   messages: LLMMessage[],
-  tier: ModelTier
+  tier: ModelTier,
+  userApiKey?: string
 ): AsyncGenerator<string> {
   const model = ANTHROPIC_MODEL_MAP[tier];
   const startTime = Date.now();
@@ -249,10 +252,11 @@ async function* callAnthropicStream(
     body.system = systemPrompt;
   }
 
+  const apiKey = userApiKey || ANTHROPIC_API_KEY;
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
+      "x-api-key": apiKey,
       "anthropic-version": ANTHROPIC_VERSION,
       "content-type": "application/json",
     },
@@ -319,9 +323,11 @@ async function* callAnthropicStream(
 
 async function callGroq(
   messages: LLMMessage[],
-  tier: ModelTier
+  tier: ModelTier,
+  userApiKey?: string
 ): Promise<LLMResponse> {
-  if (!GROQ_API_KEY) {
+  const apiKey = userApiKey || GROQ_API_KEY;
+  if (!apiKey) {
     throw new Error("GROQ_API_KEY not set. Get a free key at console.groq.com");
   }
 
@@ -331,7 +337,7 @@ async function callGroq(
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GROQ_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -355,7 +361,7 @@ async function callGroq(
 
   trackCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
   console.log(
-    `[LLM] ${model} | ${usage.total_tokens} tokens | $${((usage.prompt_tokens * (MODEL_COSTS[model]?.input || 0) + usage.completion_tokens * (MODEL_COSTS[model]?.output || 0)) / 1_000_000).toFixed(4)} | ${latencyMs}ms`
+    `[LLM] ${model}${userApiKey ? " (BYOK)" : ""} | ${usage.total_tokens} tokens | $${((usage.prompt_tokens * (MODEL_COSTS[model]?.input || 0) + usage.completion_tokens * (MODEL_COSTS[model]?.output || 0)) / 1_000_000).toFixed(4)} | ${latencyMs}ms`
   );
 
   return {
@@ -372,9 +378,11 @@ async function callGroq(
 
 async function* callGroqStream(
   messages: LLMMessage[],
-  tier: ModelTier
+  tier: ModelTier,
+  userApiKey?: string
 ): AsyncGenerator<string> {
-  if (!GROQ_API_KEY) {
+  const apiKey = userApiKey || GROQ_API_KEY;
+  if (!apiKey) {
     throw new Error("GROQ_API_KEY not set. Get a free key at console.groq.com");
   }
 
@@ -384,7 +392,7 @@ async function* callGroqStream(
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GROQ_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -458,18 +466,19 @@ async function* callGroqStream(
  */
 export async function callLLM(
   messages: LLMMessage[],
-  tier: ModelTier = "balanced"
+  tier: ModelTier = "balanced",
+  userApiKey?: string
 ): Promise<LLMResponse> {
   // Hybrid: deep tier gets Anthropic Sonnet, rest gets free Llama
-  if (tier === "deep" && ANTHROPIC_API_KEY) {
-    return callAnthropic(messages, tier);
+  if (tier === "deep" && (userApiKey || ANTHROPIC_API_KEY)) {
+    return callAnthropic(messages, tier, userApiKey);
   }
   // Admin override: if backend forced to anthropic, use it for all tiers
   const backend = resolveBackend();
   if (backend === "anthropic") {
-    return callAnthropic(messages, tier);
+    return callAnthropic(messages, tier, userApiKey);
   }
-  return callGroq(messages, tier);
+  return callGroq(messages, tier, userApiKey);
 }
 
 /**
@@ -478,17 +487,18 @@ export async function callLLM(
  */
 export async function* callLLMStream(
   messages: LLMMessage[],
-  tier: ModelTier = "balanced"
+  tier: ModelTier = "balanced",
+  userApiKey?: string
 ): AsyncGenerator<string> {
   // Hybrid: deep tier gets Anthropic Sonnet, rest gets free Llama
-  if (tier === "deep" && ANTHROPIC_API_KEY) {
-    yield* callAnthropicStream(messages, tier);
+  if (tier === "deep" && (userApiKey || ANTHROPIC_API_KEY)) {
+    yield* callAnthropicStream(messages, tier, userApiKey);
   } else {
     const backend = resolveBackend();
     if (backend === "anthropic") {
-      yield* callAnthropicStream(messages, tier);
+      yield* callAnthropicStream(messages, tier, userApiKey);
     } else {
-      yield* callGroqStream(messages, tier);
+      yield* callGroqStream(messages, tier, userApiKey);
     }
   }
 }
