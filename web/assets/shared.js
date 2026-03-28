@@ -78,6 +78,10 @@ function renderNav(activePage) {
           <span class="nav-link-icon">📚</span>
           <span class="nav-link-label">Words</span>
         </a>
+        <a href="/settings" class="nav-link ${activePage === 'settings' ? 'active' : ''}">
+          <span class="nav-link-icon">⚙️</span>
+          <span class="nav-link-label">Settings</span>
+        </a>
       </div>
       <div class="nav-user">
         <span class="nav-avatar">${initial}</span>
