@@ -358,6 +358,11 @@ function addParsedMessage(parsed) {
   let html = `<div class="agent-label">${agent ? agent.emoji + ' ' + agent.name : ''}</div>`;
   html += `<div class="bubble">${escapeHtml(parsed.response)}</div>`;
 
+  // Bilingual translation bubble (clickable to toggle visibility)
+  if (parsed.translation && parsed.translation.length > 0) {
+    html += `<div class="bubble-pl" data-lang="pl" title="Kliknij aby ukryć/pokazać">🇵🇱 ${escapeHtml(parsed.translation)}</div>`;
+  }
+
   // Play TTS button — use data attribute to avoid quote escaping issues
   html += `<button class="play-btn" data-tts-text="${escapeAttr(parsed.response)}">🔊 Play</button>`;
 
@@ -486,6 +491,10 @@ async function playTTS(btn) {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.play-btn');
   if (btn) playTTS(btn);
+
+  // Toggle Polish translation bubble on click
+  const plBubble = e.target.closest('.bubble-pl');
+  if (plBubble) plBubble.classList.toggle('collapsed');
 });
 
 // ============================================================

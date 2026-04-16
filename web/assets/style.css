@@ -131,6 +131,36 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+/* Polish translation bubble — shown under main bubble in bilingual mode */
+.message .bubble-pl {
+  margin-top: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 14px;
+  border-left: 3px solid var(--primary, #6366f1);
+  background: var(--surface);
+  color: var(--text-dim, #888);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  opacity: 0.78;
+  cursor: pointer;
+  transition: opacity 0.2s, max-height 0.25s ease-out;
+  word-wrap: break-word;
+  max-height: 1000px;
+  overflow: hidden;
+}
+
+.message .bubble-pl:hover {
+  opacity: 1;
+}
+
+.message .bubble-pl.collapsed {
+  max-height: 1.5em;
+  opacity: 0.4;
+  font-style: italic;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .message .agent-label {
   font-size: 0.75rem;
   color: var(--text-dim);

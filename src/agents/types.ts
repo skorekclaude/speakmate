@@ -31,6 +31,7 @@ export interface VocabSuggestion {
 
 export interface ParsedResponse {
   response: string;
+  translation?: string; // Polish translation of response (when language-learning bilingual mode is active)
   corrections: Correction[];
   vocabulary: VocabSuggestion[];
 }

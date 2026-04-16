@@ -31,6 +31,7 @@ export function parseLLMResponse(raw: string): ParsedResponse {
     result.response = raw
       .replace(/\[CORRECTION\][\s\S]*?(\[\/CORRECTION\]|$)/g, "")
       .replace(/\[VOCAB\][\s\S]*?(\[\/VOCAB\]|$)/g, "")
+      .replace(/\[TRANSLATION\][\s\S]*?(\[\/TRANSLATION\]|$)/g, "")
       .replace(/\[RESPONSE\][\s\S]*?(\[\/RESPONSE\]|$)/g, "")
       // Strip "RESPONSE:" anywhere (LLMs sometimes put it mid-text)
       .replace(/RESPONSE:\s*/gi, "")
@@ -38,6 +39,15 @@ export function parseLLMResponse(raw: string): ParsedResponse {
       .replace(/\{"word"\s*:[\s\S]*?\}/g, "")
       .replace(/\{"original"\s*:[\s\S]*?\}/g, "")
       .trim();
+  }
+
+  // ── Extract [TRANSLATION] block (plain text, not JSON) ──
+  const translationMatch = raw.match(/\[TRANSLATION\]([\s\S]*?)\[\/TRANSLATION\]/);
+  if (translationMatch) {
+    const t = translationMatch[1].trim();
+    if (t.length > 0) {
+      result.translation = t;
+    }
   }
 
   // ── Extract [CORRECTION] blocks ───────────────────────
@@ -183,8 +193,13 @@ function tryParseJSON(str: string): any {
  */
 export function tryParseStreaming(accumulated: string): ParsedResponse | null {
   const hasResponse = accumulated.includes("[/RESPONSE]") || !accumulated.includes("[RESPONSE]");
+  // If translation has started streaming but not yet closed, wait for it to complete —
+  // prevents rendering a half-translated bubble mid-stream.
+  const translationOpened = accumulated.includes("[TRANSLATION]");
+  const translationClosed = accumulated.includes("[/TRANSLATION]");
+  const translationReady = !translationOpened || translationClosed;
 
-  if (hasResponse) {
+  if (hasResponse && translationReady) {
     return parseLLMResponse(accumulated);
   }
   return null;
