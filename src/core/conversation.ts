@@ -40,14 +40,20 @@ async function buildMessages(
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-  // Load base prompt and append Polish news context (filtered by agent specialty)
-  const basePrompt = loadPrompt(agent.promptFile);
-  const newsItems = await getNews();
-  const newsContext = getNewsContext(newsItems, agentId);
-  const systemPrompt = basePrompt + newsContext;
-
   // Detect language-mode triggers in the user's current message.
   const langOverride = detectLanguageModeOverride(userMessage);
+
+  // Load base prompt. Append news context UNLESS a language switch was
+  // requested — news context embeds "discuss in the student's target language"
+  // which anchors the model to the agent's default (English for Dr. Majka),
+  // fighting against the PL override. We skip news on this turn for a clean switch.
+  const basePrompt = loadPrompt(agent.promptFile);
+  let systemPrompt = basePrompt;
+  if (!langOverride) {
+    const newsItems = await getNews();
+    const newsContext = getNewsContext(newsItems, agentId);
+    systemPrompt = basePrompt + newsContext;
+  }
 
   // Load recent history — but purge it entirely when a language switch is
   // requested. Claude is very prone to anchoring on its own prior refusals in

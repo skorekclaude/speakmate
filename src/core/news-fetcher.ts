@@ -404,7 +404,7 @@ export function getNewsContext(items: NewsItem[], agentId?: string): string {
   return [
     "",
     "",
-    "## Today's Polish News (use as conversation topics — discuss in the student's target language):",
+    "## Today's Polish News (use as conversation topics — respect whichever language mode is currently active):",
     ...lines,
     "",
     instruction,
