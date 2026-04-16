@@ -87,6 +87,23 @@ async function buildMessages(
 }
 
 /**
+ * Build an assistant prefill for the current turn, if the user's message
+ * triggers a language mode switch that needs forceful redirection.
+ *
+ * Anthropic API treats the last assistant message as a prefill — the model
+ * MUST continue from it. This bypasses persona-anchoring and guarantees the
+ * response starts in the requested language regardless of history bias.
+ */
+function buildPrefill(userMessage: string): string | null {
+  const override = detectLanguageModeOverride(userMessage);
+  if (override?.purgeHistory) {
+    // Start the [RESPONSE] block in Polish. Model physically cannot refuse.
+    return "[RESPONSE]\nJasne, przełączam się na polski. ";
+  }
+  return null;
+}
+
+/**
  * Detect explicit language-mode trigger phrases in the user's latest message.
  *
  * Returns:
@@ -165,10 +182,18 @@ export async function chat(
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
   const messages = await buildMessages(userId, agentId, userMessage);
+
+  // Add prefill for forced language switch (see chatStream for rationale).
+  const prefill = buildPrefill(userMessage);
+  if (prefill) {
+    messages.push({ role: "assistant", content: prefill });
+  }
+
   const response = await callLLM(messages, agent.model, userApiKey);
 
-  // Parse the structured response
-  const parsed = parseLLMResponse(response.content);
+  // Parse the structured response (reassembled with prefill if any)
+  const fullContent = prefill ? prefill + response.content : response.content;
+  const parsed = parseLLMResponse(fullContent);
 
   // Save messages to DB
   await saveMessage({
@@ -182,7 +207,7 @@ export async function chat(
     user_id: userId,
     agent_id: agentId,
     role: "assistant",
-    content: response.content,
+    content: fullContent,
     correction: parsed.corrections.length > 0 ? parsed.corrections : null,
     vocab: parsed.vocabulary.length > 0 ? parsed.vocabulary : null,
   });
@@ -222,6 +247,18 @@ export async function* chatStream(
   });
 
   const chunks: string[] = [];
+
+  // If a language switch was requested, prepend an assistant prefill.
+  // Anthropic API treats the last assistant message as a forced starting
+  // point — the model cannot refuse it. We also yield the prefill so the
+  // frontend displays the full response, and we store it in chunks so the
+  // saved assistant message is complete.
+  const prefill = buildPrefill(userMessage);
+  if (prefill) {
+    messages.push({ role: "assistant", content: prefill });
+    chunks.push(prefill);
+    yield prefill;
+  }
 
   for await (const chunk of callLLMStream(messages, agent.model, userApiKey)) {
     chunks.push(chunk);
