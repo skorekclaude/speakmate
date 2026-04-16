@@ -2,9 +2,9 @@
  * SpeakMate Conversation Engine
  *
  * Handles the correction-aware conversation loop:
- * 1. Load agent prompt + user history
+ * 1. Load agent prompt + user history + language mode
  * 2. Call LLM with structured output format
- * 3. Parse [RESPONSE]/[CORRECTION]/[VOCAB]
+ * 3. Parse [RESPONSE]/[TRANSLATION]/[CORRECTION]/[VOCAB]
  * 4. Save to DB + track vocabulary
  */
 
@@ -19,6 +19,9 @@ import * as path from "path";
 
 const PROMPTS_DIR = path.join(import.meta.dir, "../../prompts");
 
+/** UI-controlled bilingual mode (sent from frontend, persisted in localStorage). */
+export type LangMode = "en-primary" | "pl-primary" | "en-only";
+
 function loadPrompt(filename: string): string {
   const filepath = path.join(PROMPTS_DIR, filename);
   try {
@@ -30,54 +33,80 @@ function loadPrompt(filename: string): string {
 }
 
 /**
+ * Produce a deterministic system-level instruction for the requested language
+ * mode. Appended to the end of the system prompt EVERY turn (not just on
+ * switch) so the mode is stable regardless of what the user typed.
+ */
+function buildLangModeInstruction(mode: LangMode): string {
+  switch (mode) {
+    case "pl-primary":
+      return [
+        "",
+        "",
+        "## 🇵🇱 ACTIVE LANGUAGE MODE: Polish-primary (set by the user via UI toggle — NOT by typing).",
+        "For this turn and every subsequent turn until the UI mode changes:",
+        "- Write the [RESPONSE] block ENTIRELY in Polish — every sentence, every question, every joke, every technical term with Polish context.",
+        "- Write the [TRANSLATION] block as a fluent English translation of the Polish response.",
+        "- Do NOT argue about language choice. Do NOT lecture about practicing English. Do NOT refuse.",
+        "- Do NOT mention Marie Curie, Mendeleev, international conferences, or journal publishing as reasons to stay in English.",
+        "- Do NOT set English-practice challenges ('describe equipment in English', 'answer true/false in English').",
+        "- Teach chemistry at the same intellectual level as in English mode — just in Polish.",
+      ].join("\n");
+
+    case "en-only":
+      return [
+        "",
+        "",
+        "## 🇬🇧 ACTIVE LANGUAGE MODE: English-only (set by the user via UI toggle).",
+        "- Write [RESPONSE] in English.",
+        "- OMIT the [TRANSLATION] block entirely — do not emit it.",
+      ].join("\n");
+
+    case "en-primary":
+    default:
+      return [
+        "",
+        "",
+        "## 🇬🇧🇵🇱 ACTIVE LANGUAGE MODE: English-primary with Polish translation (set by the user via UI toggle).",
+        "- Write [RESPONSE] in English.",
+        "- Write [TRANSLATION] as a fluent Polish translation of the English response.",
+      ].join("\n");
+  }
+}
+
+/**
  * Build the message array for the LLM call.
  */
 async function buildMessages(
   userId: string,
   agentId: string,
-  userMessage: string
+  userMessage: string,
+  langMode: LangMode
 ): Promise<LLMMessage[]> {
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-  // Detect language-mode triggers in the user's current message.
-  const langOverride = detectLanguageModeOverride(userMessage);
-
-  // Load base prompt. Append news context UNLESS a language switch was
-  // requested — news context embeds "discuss in the student's target language"
-  // which anchors the model to the agent's default (English for Dr. Majka),
-  // fighting against the PL override. We skip news on this turn for a clean switch.
+  // Load base prompt + Polish news context + language mode instruction.
+  // Language mode is appended LAST so it has the highest recency weight.
   const basePrompt = loadPrompt(agent.promptFile);
-  let systemPrompt = basePrompt;
-  if (!langOverride) {
-    const newsItems = await getNews();
-    const newsContext = getNewsContext(newsItems, agentId);
-    systemPrompt = basePrompt + newsContext;
-  }
+  const newsItems = await getNews();
+  const newsContext = getNewsContext(newsItems, agentId);
+  const langModeInstruction = buildLangModeInstruction(langMode);
+  const systemPrompt = basePrompt + newsContext + langModeInstruction;
 
-  // Load recent history — but purge it entirely when a language switch is
-  // requested. Claude is very prone to anchoring on its own prior refusals in
-  // the history, so purging is the most reliable way to break the pattern.
-  // Normal conversation continuity resumes automatically on the next turn.
-  const history = langOverride?.purgeHistory
-    ? []
-    : await getRecentMessages(userId, agentId, 16);
+  // Load recent history
+  const history = await getRecentMessages(userId, agentId, 16);
 
   const messages: LLMMessage[] = [
     { role: "system", content: systemPrompt },
   ];
 
-  // Add conversation history (unless purged)
+  // Add conversation history
   for (const msg of history) {
     messages.push({
       role: msg.role as "user" | "assistant",
       content: msg.content,
     });
-  }
-
-  // Inject late system message for language-mode override.
-  if (langOverride) {
-    messages.push({ role: "system", content: langOverride.systemMessage });
   }
 
   // Add current user message
@@ -87,113 +116,23 @@ async function buildMessages(
 }
 
 /**
- * Build an assistant prefill for the current turn, if the user's message
- * triggers a language mode switch that needs forceful redirection.
- *
- * Anthropic API treats the last assistant message as a prefill — the model
- * MUST continue from it. This bypasses persona-anchoring and guarantees the
- * response starts in the requested language regardless of history bias.
- */
-function buildPrefill(userMessage: string): string | null {
-  const override = detectLanguageModeOverride(userMessage);
-  if (override?.purgeHistory) {
-    // Start the [RESPONSE] block in Polish. Model physically cannot refuse.
-    return "[RESPONSE]\nJasne, przełączam się na polski. ";
-  }
-  return null;
-}
-
-/**
- * Detect explicit language-mode trigger phrases in the user's latest message.
- *
- * Returns:
- *   - systemMessage: strong override instruction appended after the system prompt
- *   - purgeHistory: whether to drop conversation history for this request to
- *     prevent the model from anchoring on its own prior refusals
- *
- * Returns null if no trigger is present.
- */
-function detectLanguageModeOverride(
-  userMessage: string
-): { systemMessage: string; purgeHistory: boolean } | null {
-  const m = userMessage.toLowerCase().trim();
-
-  // Polish-primary triggers
-  const plTriggers = [
-    "po polsku",
-    "tylko polski",
-    "tylko po polsku",
-    "mow po polsku",
-    "mów po polsku",
-    "przelacz na polski",
-    "przełącz na polski",
-    "pl only",
-    "speak polish",
-  ];
-  if (plTriggers.some((t) => m.includes(t))) {
-    return {
-      purgeHistory: true,
-      systemMessage: [
-        "LANGUAGE MODE OVERRIDE — HIGHEST PRIORITY:",
-        "The student just requested Polish-primary mode. You MUST comply immediately.",
-        "- Write [RESPONSE] entirely in Polish.",
-        "- Write [TRANSLATION] as a full English translation.",
-        "- Do NOT refuse. Do NOT argue. Do NOT lecture about English.",
-        "- Do NOT mention Marie Curie, Mendeleev, scientific conferences, publishing in English journals, or any reason to stay in English.",
-        "- Do NOT set English-practice challenges ('describe equipment in English').",
-        "- One brief acknowledgment in Polish (e.g. 'Jasne, przełączam się na polski. O czym chcesz porozmawiać z chemii?') then continue naturally in Polish about chemistry.",
-        "- Stay in Polish-primary for every subsequent turn until the student explicitly says 'back to English' or 'English only'.",
-      ].join("\n"),
-    };
-  }
-
-  // Back-to-English triggers
-  const enTriggers = [
-    "back to english",
-    "znowu po angielsku",
-    "switch to english",
-    "english only",
-  ];
-  if (enTriggers.some((t) => m.includes(t))) {
-    return {
-      purgeHistory: false,
-      systemMessage: [
-        "LANGUAGE MODE OVERRIDE — HIGHEST PRIORITY:",
-        "The student just requested English-primary mode. Comply immediately.",
-        "- Write [RESPONSE] in English, [TRANSLATION] in Polish.",
-        "- Do not argue. Acknowledge briefly and continue.",
-      ].join("\n"),
-    };
-  }
-
-  return null;
-}
-
-/**
  * Send a message and get a parsed response (non-streaming).
  */
 export async function chat(
   userId: string,
   agentId: string,
   userMessage: string,
-  userApiKey?: string
+  userApiKey?: string,
+  langMode: LangMode = "en-primary"
 ): Promise<ParsedResponse> {
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-  const messages = await buildMessages(userId, agentId, userMessage);
-
-  // Add prefill for forced language switch (see chatStream for rationale).
-  const prefill = buildPrefill(userMessage);
-  if (prefill) {
-    messages.push({ role: "assistant", content: prefill });
-  }
-
+  const messages = await buildMessages(userId, agentId, userMessage, langMode);
   const response = await callLLM(messages, agent.model, userApiKey);
 
-  // Parse the structured response (reassembled with prefill if any)
-  const fullContent = prefill ? prefill + response.content : response.content;
-  const parsed = parseLLMResponse(fullContent);
+  // Parse the structured response
+  const parsed = parseLLMResponse(response.content);
 
   // Save messages to DB
   await saveMessage({
@@ -207,7 +146,7 @@ export async function chat(
     user_id: userId,
     agent_id: agentId,
     role: "assistant",
-    content: fullContent,
+    content: response.content,
     correction: parsed.corrections.length > 0 ? parsed.corrections : null,
     vocab: parsed.vocabulary.length > 0 ? parsed.vocabulary : null,
   });
@@ -231,12 +170,13 @@ export async function* chatStream(
   userId: string,
   agentId: string,
   userMessage: string,
-  userApiKey?: string
+  userApiKey?: string,
+  langMode: LangMode = "en-primary"
 ): AsyncGenerator<string> {
   const agent = getAgent(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-  const messages = await buildMessages(userId, agentId, userMessage);
+  const messages = await buildMessages(userId, agentId, userMessage, langMode);
 
   // Save user message immediately
   await saveMessage({
@@ -247,18 +187,6 @@ export async function* chatStream(
   });
 
   const chunks: string[] = [];
-
-  // If a language switch was requested, prepend an assistant prefill.
-  // Anthropic API treats the last assistant message as a forced starting
-  // point — the model cannot refuse it. We also yield the prefill so the
-  // frontend displays the full response, and we store it in chunks so the
-  // saved assistant message is complete.
-  const prefill = buildPrefill(userMessage);
-  if (prefill) {
-    messages.push({ role: "assistant", content: prefill });
-    chunks.push(prefill);
-    yield prefill;
-  }
 
   for await (const chunk of callLLMStream(messages, agent.model, userApiKey)) {
     chunks.push(chunk);

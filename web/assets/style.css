@@ -76,6 +76,35 @@ body {
 
 .agent-chip .chip-emoji { font-size: 1.1rem; }
 
+/* Language mode toggle (chemist agent only) */
+.lang-toggle {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem 0.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lang-chip {
+  padding: 0.3rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.6;
+}
+.lang-chip:hover { opacity: 1; border-color: var(--primary); }
+.lang-chip.active {
+  opacity: 1;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* ============================================================
    Chat Area
    ============================================================ */

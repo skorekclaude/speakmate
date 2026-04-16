@@ -214,7 +214,7 @@ async function handleChatStream(req: Request): Promise<Response> {
   const session = getSessionFromRequest(req);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401, req);
 
-  const { message, agentId } = await req.json();
+  const { message, agentId, langMode } = await req.json();
   if (!message) return jsonResponse({ error: "Message required" }, 400, req);
 
   // Validate message length (prevent abuse)
@@ -222,13 +222,17 @@ async function handleChatStream(req: Request): Promise<Response> {
     return jsonResponse({ error: "Message too long (max 5000 chars)" }, 400, req);
   }
 
+  // Validate & normalize langMode
+  const validModes = ["en-primary", "pl-primary", "en-only"];
+  const normalizedLangMode = validModes.includes(langMode) ? langMode : "en-primary";
+
   const agent = getAgent(agentId || "general");
   if (!agent) return jsonResponse({ error: "Agent not found" }, 404, req);
 
   // BYOK: load user's API key (Anthropic for deep tier, Groq for others)
   const userApiKey = await getUserApiKey(session.userId, "anthropic") || await getUserApiKey(session.userId, "groq") || undefined;
 
-  console.log(`[Chat] user:${session.userId.substring(0, 8)} → ${agent.id}${userApiKey ? " (BYOK)" : ""}: ${message.substring(0, 50)}...`);
+  console.log(`[Chat] user:${session.userId.substring(0, 8)} → ${agent.id} [${normalizedLangMode}]${userApiKey ? " (BYOK)" : ""}: ${message.substring(0, 50)}...`);
 
   // SSE streaming response
   const encoder = new TextEncoder();
@@ -237,7 +241,7 @@ async function handleChatStream(req: Request): Promise<Response> {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of chatStream(session.userId, agent.id, message, userApiKey)) {
+        for await (const chunk of chatStream(session.userId, agent.id, message, userApiKey, normalizedLangMode)) {
           chunks.push(chunk);
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "chunk", content: chunk })}\n\n`)
@@ -254,6 +258,7 @@ async function handleChatStream(req: Request): Promise<Response> {
               type: "done",
               parsed: {
                 response: parsed.response,
+                translation: parsed.translation,
                 corrections: parsed.corrections,
                 vocabulary: parsed.vocabulary,
               },

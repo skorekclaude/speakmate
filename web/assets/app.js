@@ -23,6 +23,16 @@ let isStreaming = false;
 let recognition = null;
 let isRecording = false;
 
+// Language mode (per-agent). 'en-primary' (default) | 'pl-primary' | 'en-only'
+// Currently only the chemist agent exposes the toggle; others stay en-primary.
+const LANG_MODE_AGENTS = new Set(['chemist']);
+function getLangMode(agentId) {
+  return localStorage.getItem(`sm_langmode_${agentId}`) || 'en-primary';
+}
+function setLangMode(agentId, mode) {
+  localStorage.setItem(`sm_langmode_${agentId}`, mode);
+}
+
 // ============================================================
 // Auth Check
 // ============================================================
@@ -78,6 +88,44 @@ function renderAgentBar() {
   </button>`;
 }
 
+/**
+ * Render the language-mode toggle below the agent bar.
+ * Shown only for agents that support UI-controlled bilingual mode (chemist).
+ * Three states: 🇬🇧🇵🇱 (EN + PL translation) / 🇵🇱 (PL-primary) / 🇬🇧 (EN only)
+ */
+function renderLangToggle() {
+  let container = document.getElementById('langToggle');
+  if (!LANG_MODE_AGENTS.has(currentAgent)) {
+    if (container) container.remove();
+    return;
+  }
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'langToggle';
+    container.className = 'lang-toggle';
+    const agentBar = document.getElementById('agentBar');
+    agentBar.parentNode.insertBefore(container, agentBar.nextSibling);
+  }
+  const mode = getLangMode(currentAgent);
+  const options = [
+    { key: 'en-primary', label: '🇬🇧🇵🇱', title: 'EN + PL translation' },
+    { key: 'pl-primary', label: '🇵🇱',   title: 'Tylko polski' },
+    { key: 'en-only',    label: '🇬🇧',   title: 'English only, no translation' },
+  ];
+  container.innerHTML = options.map(o =>
+    `<button class="lang-chip${mode === o.key ? ' active' : ''}"
+             data-mode="${o.key}"
+             title="${o.title}"
+             onclick="changeLangMode('${o.key}')">${o.label}</button>`
+  ).join('');
+}
+
+function changeLangMode(mode) {
+  setLangMode(currentAgent, mode);
+  renderLangToggle();
+}
+window.changeLangMode = changeLangMode;
+
 function selectAgent(id, reload = false) {
   // Validate agent exists
   const agent = agents.find(a => a.id === id);
@@ -110,6 +158,9 @@ function selectAgent(id, reload = false) {
   } else {
     input.placeholder = 'Type in English...';
   }
+
+  // Render (or hide) language-mode toggle for this agent
+  renderLangToggle();
 
   // Load history if switching agents
   if (reload && prevAgent !== id) {
@@ -219,7 +270,7 @@ async function sendMessage() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ message: text, agentId: currentAgent }),
+      body: JSON.stringify({ message: text, agentId: currentAgent, langMode: getLangMode(currentAgent) }),
     });
 
     if (res.status === 401) {
