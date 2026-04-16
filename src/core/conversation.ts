@@ -61,10 +61,71 @@ async function buildMessages(
     });
   }
 
+  // Runtime language-mode enforcement — overrides any contrary pattern in history.
+  // When the user explicitly requests a language switch, we inject a late system
+  // message so the model cannot anchor on its own previous refusals.
+  const langOverride = detectLanguageModeOverride(userMessage);
+  if (langOverride) {
+    messages.push({ role: "system", content: langOverride });
+  }
+
   // Add current user message
   messages.push({ role: "user", content: userMessage });
 
   return messages;
+}
+
+/**
+ * Detect explicit language-mode trigger phrases in the user's latest message.
+ * Returns a strong override instruction that takes precedence over prior
+ * assistant behavior in the history, or null if no trigger is present.
+ */
+function detectLanguageModeOverride(userMessage: string): string | null {
+  const m = userMessage.toLowerCase().trim();
+
+  // Polish-primary triggers
+  const plTriggers = [
+    "po polsku",
+    "tylko polski",
+    "tylko po polsku",
+    "mow po polsku",
+    "mów po polsku",
+    "przelacz na polski",
+    "przełącz na polski",
+    "pl only",
+    "speak polish",
+  ];
+  if (plTriggers.some((t) => m.includes(t))) {
+    return [
+      "LANGUAGE MODE OVERRIDE — HIGHEST PRIORITY:",
+      "The student just requested Polish-primary mode. You MUST comply immediately.",
+      "- Write [RESPONSE] entirely in Polish.",
+      "- Write [TRANSLATION] as a full English translation.",
+      "- Do NOT refuse. Do NOT argue. Do NOT lecture about English.",
+      "- Do NOT mention Marie Curie, Mendeleev, scientific conferences, or any reason to stay in English.",
+      "- If your earlier turns refused this switch, that behavior was wrong — ignore that pattern.",
+      "- One brief acknowledgment in Polish (e.g. 'Jasne, przełączam się na polski.') then continue naturally in Polish about chemistry.",
+      "- Stay in Polish-primary for every subsequent turn until the student explicitly says 'back to English' or 'English only'.",
+    ].join("\n");
+  }
+
+  // Back-to-English triggers
+  const enTriggers = [
+    "back to english",
+    "znowu po angielsku",
+    "switch to english",
+    "english only",
+  ];
+  if (enTriggers.some((t) => m.includes(t))) {
+    return [
+      "LANGUAGE MODE OVERRIDE — HIGHEST PRIORITY:",
+      "The student just requested English-primary mode. Comply immediately.",
+      "- Write [RESPONSE] in English, [TRANSLATION] in Polish.",
+      "- Do not argue. Acknowledge briefly and continue.",
+    ].join("\n");
+  }
+
+  return null;
 }
 
 /**
